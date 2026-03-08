@@ -1447,19 +1447,19 @@
 <!-- モバイルナビ -->
 <div class="mobile-header">
   <div class="mobile-nav">
-    <div class="mobile-nav-item active">
+    <div class="mobile-nav-item active" onclick="setMobileNav(this,'home')">
       <div class="mobile-nav-icon">🏠</div>ホーム
     </div>
-    <div class="mobile-nav-item">
+    <div class="mobile-nav-item" onclick="setMobileNav(this,'calendar')">
       <div class="mobile-nav-icon">📅</div>カレンダー
     </div>
-    <div class="mobile-nav-item">
+    <div class="mobile-nav-item" onclick="openAddTransaction()">
       <div class="mobile-nav-icon">＋</div>追加
     </div>
-    <div class="mobile-nav-item">
+    <div class="mobile-nav-item" onclick="setMobileNav(this,'graph')">
       <div class="mobile-nav-icon">📊</div>グラフ
     </div>
-    <div class="mobile-nav-item">
+    <div class="mobile-nav-item" onclick="setMobileNav(this,'backup')">
       <div class="mobile-nav-icon">⚙️</div>設定
     </div>
   </div>
