@@ -1,0 +1,4471 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>かけいぼ</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<!-- Firebase SDK (CDN) -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getFirestore, doc, setDoc, getDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyB3JEoswI6FjHtG3_9aAc0QVtMPGW_lvDU",
+    authDomain: "kakeibo-84fec.firebaseapp.com",
+    projectId: "kakeibo-84fec",
+    storageBucket: "kakeibo-84fec.firebasestorage.app",
+    messagingSenderId: "50908314034",
+    appId: "1:50908314034:web:54b34b03f2b37542498cab"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+
+  // グローバルに公開（メインスクリプトから使用）
+  window._firebaseDb = db;
+  window._firebaseDoc = doc;
+  window._firebaseSetDoc = setDoc;
+  window._firebaseGetDoc = getDoc;
+  window._firebaseOnSnapshot = onSnapshot;
+  window._firebaseReady = true;
+
+  // Firebase準備完了イベントを発火
+  window.dispatchEvent(new Event('firebaseReady'));
+</script>
+<style>
+  :root {
+    --bg-primary: #0a0e1a;
+    --bg-secondary: #111827;
+    --bg-card: #1a2236;
+    --bg-hover: #1e2a42;
+    --border: #2a3a5c;
+    --blue: #3b82f6;
+    --blue-light: #60a5fa;
+    --blue-glow: rgba(59,130,246,0.15);
+    --green: #10b981;
+    --red: #ef4444;
+    --purple: #8b5cf6;
+    --orange: #f59e0b;
+    --text-primary: #f1f5f9;
+    --text-secondary: #94a3b8;
+    --text-muted: #475569;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Noto Sans JP', sans-serif;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* 背景グリッド */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: 
+      linear-gradient(rgba(59,130,246,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(59,130,246,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ヘッダー */
+  .header {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    height: 60px;
+    background: rgba(10,14,26,0.9);
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 20px;
+    z-index: 100;
+  }
+
+  .logo {
+    font-family: 'Space Mono', monospace;
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--blue-light);
+    letter-spacing: 2px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .logo-icon {
+    width: 32px; height: 32px;
+    background: var(--blue-glow);
+    border: 1px solid var(--blue);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px;
+  }
+
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .header-date {
+    font-size: 12px;
+    color: var(--text-secondary);
+    font-family: 'Space Mono', monospace;
+  }
+
+  /* Firebase接続インジケーター */
+  .fb-indicator {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 11px;
+    color: var(--text-muted);
+    padding: 4px 10px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    background: var(--bg-card);
+  }
+  .fb-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--text-muted);
+    transition: background 0.3s;
+  }
+  .fb-dot.connected { background: var(--green); box-shadow: 0 0 6px var(--green); }
+  .fb-dot.saving { background: var(--orange); animation: pulse 1s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+  /* 初回ローディング */
+  #fbLoading {
+    position: fixed; inset: 0;
+    background: var(--bg-primary);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    z-index: 9999; gap: 16px;
+  }
+  .fb-spinner {
+    width: 48px; height: 48px;
+    border: 3px solid var(--border);
+    border-top-color: var(--blue);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .btn-icon {
+    width: 36px; height: 36px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 16px;
+    color: var(--text-secondary);
+  }
+
+  .btn-icon:hover {
+    border-color: var(--blue);
+    color: var(--blue-light);
+    background: var(--blue-glow);
+  }
+
+  /* メインレイアウト */
+  .layout {
+    display: flex;
+    padding-top: 60px;
+    min-height: 100vh;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* サイドバー */
+  .sidebar {
+    width: 220px;
+    background: var(--bg-secondary);
+    border-right: 1px solid var(--border);
+    padding: 20px 12px;
+    position: fixed;
+    top: 60px;
+    left: 0;
+    bottom: 0;
+    height: calc(100vh - 60px);
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    transition: transform 0.3s;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+  .sidebar::-webkit-scrollbar { width: 4px; }
+  .sidebar::-webkit-scrollbar-track { background: transparent; }
+  .sidebar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  .sidebar-label {
+    font-size: 10px;
+    color: var(--text-muted);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    padding: 8px 8px 4px;
+    font-weight: 500;
+  }
+
+  /* ルームアイテム */
+  .room-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: 1px solid transparent;
+    position: relative;
+  }
+
+  .room-item:hover {
+    background: var(--bg-hover);
+    border-color: var(--border);
+  }
+
+  .room-item.active {
+    background: var(--blue-glow);
+    border-color: var(--blue);
+  }
+
+  .room-item.active .room-name {
+    color: var(--blue-light);
+  }
+
+  .room-icon {
+    width: 32px; height: 32px;
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px;
+    flex-shrink: 0;
+  }
+
+  .room-info { flex: 1; min-width: 0; }
+
+  .room-name {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .room-balance {
+    font-size: 11px;
+    color: var(--text-secondary);
+    font-family: 'Space Mono', monospace;
+  }
+
+  .room-balance.positive { color: var(--green); }
+  .room-balance.negative { color: var(--red); }
+
+  /* ルーム追加ボタン */
+  .btn-add-room {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: 1px dashed var(--border);
+    color: var(--text-muted);
+    font-size: 13px;
+    margin-top: 4px;
+  }
+
+  .btn-add-room:hover {
+    border-color: var(--blue);
+    color: var(--blue-light);
+    background: var(--blue-glow);
+  }
+
+  .sidebar-divider {
+    height: 1px;
+    background: var(--border);
+    margin: 8px 0;
+  }
+
+  /* ナビアイテム */
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 12px;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.2s;
+    color: var(--text-secondary);
+    font-size: 13px;
+    border: 1px solid transparent;
+  }
+
+  .nav-item:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+  }
+
+  .nav-item.active {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+    border-color: var(--border);
+  }
+
+  .nav-icon { font-size: 16px; width: 20px; text-align: center; }
+
+  /* メインコンテンツ */
+  .main {
+    margin-left: 220px;
+    flex: 1;
+    padding: 24px;
+    min-height: calc(100vh - 60px);
+  }
+
+  /* ページヘッダー */
+  .page-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 24px;
+  }
+
+  .page-title {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .room-badge {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 14px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    font-size: 14px;
+    font-weight: 500;
+  }
+
+  .page-title h1 {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--text-primary);
+  }
+
+  .btn-primary {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    background: var(--blue);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: 'Noto Sans JP', sans-serif;
+  }
+
+  .btn-primary:hover {
+    background: var(--blue-light);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 20px rgba(59,130,246,0.4);
+  }
+
+  /* サマリーカード */
+  .summary-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+
+  .summary-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 18px;
+    transition: all 0.2s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .summary-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+  }
+
+  .summary-card.income::before { background: var(--green); }
+  .summary-card.expense::before { background: var(--red); }
+  .summary-card.balance::before { background: var(--blue); }
+  .summary-card.savings::before { background: var(--purple); }
+
+  .summary-card:hover {
+    border-color: var(--blue);
+    transform: translateY(-2px);
+  }
+
+  .card-label {
+    font-size: 11px;
+    color: var(--text-muted);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .card-amount {
+    font-size: 24px;
+    font-weight: 700;
+    font-family: 'Space Mono', monospace;
+    margin-bottom: 4px;
+  }
+
+  .card-amount.income { color: var(--green); }
+  .card-amount.expense { color: var(--red); }
+  .card-amount.balance { color: var(--blue-light); }
+  .card-amount.savings { color: var(--purple); }
+
+  .card-sub {
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+
+  /* コンテンツグリッド */
+  .content-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+  }
+
+  .card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    overflow: hidden;
+  }
+
+  .card-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .card-title {
+    font-size: 14px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .card-body { padding: 20px; }
+
+  /* 取引リスト */
+  .transaction-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border);
+    transition: all 0.2s;
+  }
+
+  .transaction-item:last-child { border-bottom: none; }
+  .transaction-item:hover { padding-left: 4px; }
+
+  .tx-icon {
+    width: 36px; height: 36px;
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px;
+    flex-shrink: 0;
+  }
+
+  .tx-info { flex: 1; }
+  .tx-name { font-size: 13px; font-weight: 500; }
+  .tx-category { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+
+  .tx-amount {
+    font-family: 'Space Mono', monospace;
+    font-size: 14px;
+    font-weight: 700;
+  }
+
+  .tx-amount.income { color: var(--green); }
+  .tx-amount.expense { color: var(--red); }
+
+  /* 月選択 */
+  .month-nav {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 4px 8px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  .month-btn {
+    width: 24px; height: 24px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 6px;
+    cursor: pointer;
+    color: var(--text-secondary);
+    transition: all 0.2s;
+    font-size: 12px;
+  }
+
+  .month-btn:hover {
+    background: var(--blue-glow);
+    color: var(--blue-light);
+  }
+
+  /* モーダル */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.7);
+    backdrop-filter: blur(4px);
+    z-index: 200;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s;
+  }
+
+  .modal-overlay.show {
+    opacity: 1;
+    pointer-events: all;
+  }
+
+  .modal {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    width: 400px;
+    max-width: 95vw;
+    max-height: 92vh;
+    overflow-y: auto;
+    padding: 20px;
+    transform: translateY(20px);
+    transition: transform 0.3s;
+  }
+
+  .modal-overlay.show .modal {
+    transform: translateY(0);
+  }
+
+  .modal-title {
+    font-size: 16px;
+    font-weight: 700;
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .form-group { margin-bottom: 16px; }
+
+  .form-label {
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-bottom: 8px;
+    display: block;
+  }
+
+  .form-input {
+    width: 100%;
+    padding: 10px 14px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--text-primary);
+    font-size: 14px;
+    font-family: 'Noto Sans JP', sans-serif;
+    transition: border-color 0.2s;
+    outline: none;
+  }
+
+  .form-input:focus { border-color: var(--blue); }
+
+  .icon-picker {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .icon-option {
+    width: 40px; height: 40px;
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px;
+    cursor: pointer;
+    border: 2px solid var(--border);
+    transition: all 0.2s;
+  }
+
+  .icon-option:hover, .icon-option.selected {
+    border-color: var(--blue);
+    background: var(--blue-glow);
+  }
+
+  .color-picker {
+    display: flex;
+    gap: 8px;
+  }
+
+  .color-option {
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: all 0.2s;
+  }
+
+  .color-option:hover, .color-option.selected {
+    border-color: white;
+    transform: scale(1.2);
+  }
+
+  .modal-footer {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+  }
+
+  .btn-secondary {
+    flex: 1;
+    padding: 10px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--text-secondary);
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: 'Noto Sans JP', sans-serif;
+  }
+
+  .btn-secondary:hover {
+    border-color: var(--blue);
+    color: var(--text-primary);
+  }
+
+  .btn-primary-full {
+    flex: 2;
+    padding: 10px;
+    background: var(--blue);
+    border: none;
+    border-radius: 10px;
+    color: white;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: 'Noto Sans JP', sans-serif;
+  }
+
+  .btn-primary-full:hover {
+    background: var(--blue-light);
+  }
+
+  /* トースト */
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    background: var(--bg-card);
+    border: 1px solid var(--green);
+    color: var(--green);
+    padding: 12px 20px;
+    border-radius: 12px;
+    font-size: 13px;
+    font-weight: 500;
+    z-index: 300;
+    transform: translateY(100px);
+    opacity: 0;
+    transition: all 0.3s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .toast.show {
+    transform: translateY(0);
+    opacity: 1;
+  }
+
+  /* モバイル */
+  .mobile-header {
+    display: none;
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    background: var(--bg-secondary);
+    border-top: 1px solid var(--border);
+    padding: 8px 0;
+    z-index: 100;
+  }
+
+  .mobile-nav {
+    display: flex;
+    justify-content: space-around;
+  }
+
+  .mobile-nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 12px;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.2s;
+    color: var(--text-muted);
+    font-size: 10px;
+  }
+
+  .mobile-nav-item.active {
+    color: var(--blue-light);
+  }
+
+  .mobile-nav-icon { font-size: 20px; }
+
+  @media (max-width: 768px) {
+    .sidebar { display: none; }
+    .main { margin-left: 0; padding: 16px; padding-bottom: 80px; }
+    .summary-grid { grid-template-columns: repeat(2, 1fr); }
+    .content-grid { grid-template-columns: 1fr; }
+    .mobile-header { display: block; }
+    .card-amount { font-size: 18px; }
+  }
+
+  /* 電卓ボタン */
+  .calc-btn {
+    padding: 9px 6px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text-primary);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-family: 'Space Mono', monospace;
+  }
+  .calc-btn:hover {
+    background: var(--bg-hover);
+    border-color: var(--blue);
+    transform: scale(1.05);
+  }
+  .calc-btn:active { transform: scale(0.95); }
+  .calc-btn.op {
+    background: rgba(59,130,246,0.1);
+    color: var(--blue-light);
+    border-color: rgba(59,130,246,0.3);
+  }
+
+
+  /* ─── カレンダー ─── */
+  .cal-day {
+    min-height: 72px;
+    border-radius: 8px;
+    padding: 4px;
+    cursor: pointer;
+    transition: background 0.15s;
+    position: relative;
+  }
+  .cal-day:hover { background: var(--bg-hover); }
+  .cal-day.today { background: rgba(59,130,246,0.1); border: 1px solid var(--blue); }
+  .cal-day.selected { background: rgba(59,130,246,0.18); border: 1px solid var(--blue-light); }
+  .cal-day.other-month { opacity: 0.3; }
+  .cal-day-num {
+    font-size: 12px;
+    font-weight: 600;
+    font-family: 'Space Mono', monospace;
+    margin-bottom: 2px;
+  }
+  .cal-day-num.sunday { color: #ef4444; }
+  .cal-day-num.saturday { color: #3b82f6; }
+  .cal-dot {
+    width: 100%;
+    font-size: 9px;
+    border-radius: 3px;
+    padding: 1px 3px;
+    margin-bottom: 1px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .cal-dot.income { background: rgba(16,185,129,0.2); color: #10b981; }
+  .cal-dot.expense { background: rgba(239,68,68,0.2); color: #ef4444; }
+  .cal-total {
+    font-size: 9px;
+    text-align: right;
+    color: var(--text-muted);
+    margin-top: 2px;
+  }
+
+  /* アニメーション */
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .summary-card { animation: fadeIn 0.3s ease forwards; }
+  .summary-card:nth-child(1) { animation-delay: 0.1s; }
+  .summary-card:nth-child(2) { animation-delay: 0.15s; }
+  .summary-card:nth-child(3) { animation-delay: 0.2s; }
+  .summary-card:nth-child(4) { animation-delay: 0.25s; }
+
+  .empty-state {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--text-muted);
+  }
+  .empty-state .empty-icon { font-size: 40px; margin-bottom: 12px; }
+  .empty-state p { font-size: 13px; }
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+</head>
+<body>
+
+<!-- ローディング画面 -->
+<div id="fbLoading">
+  <div class="fb-spinner"></div>
+  <div style="font-size:14px;color:var(--text-secondary);">☁️ クラウドデータを読み込み中...</div>
+</div>
+
+<!-- ヘッダー -->
+<header class="header">
+  <div class="logo">
+    <div class="logo-icon">💰</div>
+    かけいぼ
+  </div>
+  <div class="header-right">
+    <div class="fb-indicator">
+      <div class="fb-dot" id="fbDot"></div>
+      <span id="fbStatus">接続中...</span>
+    </div>
+    <div class="header-date" id="headerDate"></div>
+    <div class="btn-icon" title="通知">🔔</div>
+    <div class="btn-icon" title="設定">⚙️</div>
+  </div>
+</header>
+
+<!-- レイアウト -->
+<div class="layout">
+
+  <!-- サイドバー -->
+  <aside class="sidebar">
+    <div class="sidebar-label">ルーム</div>
+
+    <div id="roomList"></div>
+
+    <div class="btn-add-room" onclick="openAddRoom()">
+      <span>＋</span>
+      <span>ルームを追加</span>
+    </div>
+
+    <div class="sidebar-divider"></div>
+    <div class="sidebar-label">メニュー</div>
+
+    <div class="nav-item active" onclick="setNav(this, 'home')">
+      <span class="nav-icon">🏠</span>ホーム
+    </div>
+    <div class="nav-item" onclick="setNav(this, 'calendar')">
+      <span class="nav-icon">📅</span>カレンダー
+    </div>
+    <div class="nav-item" onclick="setNav(this, 'graph')">
+      <span class="nav-icon">📊</span>グラフ
+    </div>
+    <div class="nav-item" onclick="setNav(this, 'budget')">
+      <span class="nav-icon">🎯</span>予算管理
+    </div>
+    <div class="nav-item" onclick="setNav(this, 'income-goal')">
+      <span class="nav-icon">⏱️</span>収入目標管理
+    </div>
+    <div class="nav-item" onclick="setNav(this, 'savings')">
+      <span class="nav-icon">💎</span>貯蓄目標
+    </div>
+    <div class="nav-item" onclick="setNav(this, 'loan')">
+      <span class="nav-icon">🏦</span>ローン
+    </div>
+    <div class="nav-item" onclick="setNav(this, 'subscriptions')">
+      <span class="nav-icon">🔄</span>サブスク
+    </div>
+    <div class="nav-item" onclick="setNav(this, 'creditcard')">
+      <span class="nav-icon">💳</span>クレカ管理
+    </div>
+    <div class="nav-item" onclick="setNav(this, 'report')">
+      <span class="nav-icon">📋</span>レポート
+    </div>
+
+    <div class="sidebar-divider"></div>
+
+    <div class="nav-item" onclick="setNav(this,'backup')">
+      <span class="nav-icon">💾</span>バックアップ
+    </div>
+  </aside>
+
+  <!-- メイン -->
+  <main class="main">
+    <!-- ページヘッダー -->
+    <div class="page-header">
+      <div class="page-title">
+        <div class="room-badge" id="currentRoomBadge">💵 現金・日常収支</div>
+        <h1 id="pageTitle">ホーム</h1>
+      </div>
+      <div style="display:flex;gap:10px;align-items:center;">
+        <div class="month-nav">
+          <div class="month-btn" onclick="changeMonth(-1)">◀</div>
+          <span id="currentMonth">2026年3月</span>
+          <div class="month-btn" onclick="changeMonth(1)">▶</div>
+        </div>
+        <button class="btn-primary" onclick="openAddTransaction()">
+          ＋ 収支を追加
+        </button>
+      </div>
+    </div>
+
+    <!-- サマリーカード -->
+    <div class="summary-grid">
+      <div class="summary-card income">
+        <div class="card-label">🟢 収入</div>
+        <div class="card-amount income" id="totalIncome">¥0</div>
+        <div class="card-sub">今月の収入合計</div>
+      </div>
+      <div class="summary-card expense">
+        <div class="card-label">🔴 支出</div>
+        <div class="card-amount expense" id="totalExpense">¥0</div>
+        <div class="card-sub">今月の支出合計</div>
+      </div>
+      <div class="summary-card balance">
+        <div class="card-label">🔵 残高</div>
+        <div class="card-amount balance" id="totalBalance">¥0</div>
+        <div class="card-sub">収入 - 支出</div>
+      </div>
+      <div class="summary-card savings">
+        <div class="card-label">💎 貯蓄</div>
+        <div class="card-amount savings" id="totalSavings">¥0</div>
+        <div class="card-sub">推奨貯蓄額</div>
+      </div>
+    </div>
+
+    <!-- ─── ホームページ ─── -->
+    <div id="page-home">
+      <div class="content-grid">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">📝 最近の取引</div>
+            <div style="font-size:12px;color:var(--text-muted);cursor:pointer;" onclick="setPage('home')">すべて見る</div>
+          </div>
+          <div class="card-body" id="transactionList">
+            <div class="empty-state">
+              <div class="empty-icon">📭</div>
+              <p>まだ取引がありません<br>「収支を追加」から入力してください</p>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">🏠 ルーム一覧</div>
+            <div style="font-size:12px;color:var(--text-muted);cursor:pointer;" onclick="openAddRoom()">＋ 追加</div>
+          </div>
+          <div class="card-body" id="roomSummaryList"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─── カレンダーページ ─── -->
+    <div id="page-calendar" style="display:none;">
+      <div class="card" style="margin-bottom:16px;">
+        <div class="card-body" style="padding:0;">
+          <!-- 曜日ヘッダー -->
+          <div style="display:grid;grid-template-columns:repeat(7,1fr);text-align:center;padding:12px 8px 8px;border-bottom:1px solid var(--border);">
+            <div style="font-size:12px;color:#ef4444;font-weight:600;">日</div>
+            <div style="font-size:12px;color:var(--text-secondary);font-weight:600;">月</div>
+            <div style="font-size:12px;color:var(--text-secondary);font-weight:600;">火</div>
+            <div style="font-size:12px;color:var(--text-secondary);font-weight:600;">水</div>
+            <div style="font-size:12px;color:var(--text-secondary);font-weight:600;">木</div>
+            <div style="font-size:12px;color:var(--text-secondary);font-weight:600;">金</div>
+            <div style="font-size:12px;color:#3b82f6;font-weight:600;">土</div>
+          </div>
+          <!-- カレンダーグリッド -->
+          <div id="calendarGrid" style="display:grid;grid-template-columns:repeat(7,1fr);padding:8px;gap:2px;"></div>
+        </div>
+      </div>
+      <!-- 選択日の取引リスト -->
+      <div class="card" id="calDayCard" style="display:none;">
+        <div class="card-header">
+          <div class="card-title" id="calDayTitle">📅 選択日の取引</div>
+          <div style="font-size:12px;color:var(--blue-light);cursor:pointer;" onclick="openAddTransaction()">＋ 追加</div>
+        </div>
+        <div class="card-body" id="calDayList"></div>
+      </div>
+    </div>
+
+
+    <!-- ─── グラフページ ─── -->
+    <div id="page-graph" style="display:none;">
+
+      <!-- タブ切り替え -->
+      <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
+        <button class="gtab active" id="gtab_monthly" onclick="setGraphTab('monthly')"
+          style="padding:8px 16px;border-radius:20px;border:1px solid var(--blue);background:var(--blue-glow);color:var(--blue-light);font-size:13px;cursor:pointer;font-family:inherit;font-weight:600;">📅 月別推移</button>
+        <button class="gtab" id="gtab_category" onclick="setGraphTab('category')"
+          style="padding:8px 16px;border-radius:20px;border:1px solid var(--border);background:transparent;color:var(--text-muted);font-size:13px;cursor:pointer;font-family:inherit;font-weight:600;">🥧 カテゴリ別</button>
+        <button class="gtab" id="gtab_weekly" onclick="setGraphTab('weekly')"
+          style="padding:8px 16px;border-radius:20px;border:1px solid var(--border);background:transparent;color:var(--text-muted);font-size:13px;cursor:pointer;font-family:inherit;font-weight:600;">📆 週別</button>
+        <button class="gtab" id="gtab_compare" onclick="setGraphTab('compare')"
+          style="padding:8px 16px;border-radius:20px;border:1px solid var(--border);background:transparent;color:var(--text-muted);font-size:13px;cursor:pointer;font-family:inherit;font-weight:600;">📊 収支比較</button>
+      </div>
+
+      <!-- 月別推移 -->
+      <div id="graph-monthly">
+        <div class="card" style="margin-bottom:16px;">
+          <div class="card-header">
+            <div class="card-title">📅 月別 収入・支出推移（過去6ヶ月）</div>
+          </div>
+          <div class="card-body">
+            <canvas id="chartMonthly" height="220"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- カテゴリ別 -->
+      <div id="graph-category" style="display:none;">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">🔴 支出カテゴリ</div>
+            </div>
+            <div class="card-body">
+              <canvas id="chartCatExpense" height="220"></canvas>
+              <div id="catLegendExpense" style="margin-top:12px;"></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">🟢 収入カテゴリ</div>
+            </div>
+            <div class="card-body">
+              <canvas id="chartCatIncome" height="220"></canvas>
+              <div id="catLegendIncome" style="margin-top:12px;"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 週別 -->
+      <div id="graph-weekly" style="display:none;">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">📆 今月の週別支出</div>
+          </div>
+          <div class="card-body">
+            <canvas id="chartWeekly" height="220"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- 収支比較 -->
+      <div id="graph-compare" style="display:none;">
+        <div class="card" style="margin-bottom:16px;">
+          <div class="card-header">
+            <div class="card-title">📊 月別 収支バランス</div>
+          </div>
+          <div class="card-body">
+            <canvas id="chartCompare" height="220"></canvas>
+          </div>
+        </div>
+        <!-- サマリーカード -->
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;">
+          <div class="card" style="text-align:center;padding:16px;">
+            <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px;">今月の収支差</div>
+            <div id="gBalanceAmt" style="font-size:22px;font-weight:700;font-family:'Space Mono',monospace;">¥0</div>
+          </div>
+          <div class="card" style="text-align:center;padding:16px;">
+            <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px;">最大支出カテゴリ</div>
+            <div id="gTopCat" style="font-size:16px;font-weight:700;">-</div>
+          </div>
+          <div class="card" style="text-align:center;padding:16px;">
+            <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px;">貯蓄率</div>
+            <div id="gSavingRate" style="font-size:22px;font-weight:700;font-family:'Space Mono',monospace;">0%</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ─── 予算管理ページ ─── -->
+    <div id="page-budget" style="display:none;">
+
+      <!-- ── 合計サマリーバナー ── -->
+      <div class="card" style="margin-bottom:16px;background:linear-gradient(135deg,rgba(59,130,246,0.12),rgba(139,92,246,0.12));border-color:rgba(59,130,246,0.3);">
+        <div class="card-body">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;flex-wrap:wrap;gap:8px;">
+            <div>
+              <div style="font-size:11px;color:var(--text-muted);margin-bottom:2px;">今月の予算合計（カテゴリ合計）</div>
+              <div id="budgetTotal" style="font-size:28px;font-weight:700;font-family:'Space Mono',monospace;color:var(--blue-light);">¥0</div>
+            </div>
+            <div style="display:flex;gap:16px;">
+              <div style="text-align:right;">
+                <div style="font-size:10px;color:var(--text-muted);">使用済み</div>
+                <div id="budgetUsed" style="font-size:18px;font-weight:700;font-family:'Space Mono',monospace;color:#ef4444;">¥0</div>
+              </div>
+              <div style="text-align:right;">
+                <div style="font-size:10px;color:var(--text-muted);">残り使える</div>
+                <div id="budgetRemain" style="font-size:18px;font-weight:700;font-family:'Space Mono',monospace;color:#10b981;">¥0</div>
+              </div>
+            </div>
+          </div>
+          <!-- 全体バー -->
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+            <span style="font-size:12px;color:var(--text-muted);">全体消化率</span>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <span id="budgetDaysLeft" style="font-size:11px;color:var(--text-muted);"></span>
+              <span id="budgetPct" style="font-size:13px;font-weight:700;font-family:'Space Mono',monospace;color:var(--blue-light);">0%</span>
+            </div>
+          </div>
+          <div style="background:rgba(255,255,255,0.07);border-radius:999px;height:10px;overflow:hidden;">
+            <div id="budgetBar" style="height:100%;border-radius:999px;background:linear-gradient(90deg,#3b82f6,#10b981);width:0%;transition:width 0.8s ease;"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── カテゴリ別カード一覧 ── -->
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+        <div style="font-size:14px;font-weight:600;color:var(--text-secondary);">カテゴリ別予算</div>
+        <div style="font-size:12px;color:var(--blue-light);cursor:pointer;font-weight:600;" onclick="openBudgetModal()">＋ 予算を設定</div>
+      </div>
+      <div id="budgetCards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;margin-bottom:16px;"></div>
+
+      <!-- ── 未設定カテゴリの支出 ── -->
+      <div class="card" id="budgetUncategorized" style="display:none;">
+        <div class="card-header">
+          <div class="card-title" style="font-size:13px;">📦 予算未設定の支出</div>
+        </div>
+        <div class="card-body" id="budgetUncatList"></div>
+      </div>
+
+    </div>
+
+    <!-- ─── 貯蓄目標ページ ─── -->
+    <div id="page-savings" style="display:none;">
+      <div class="card" style="margin-bottom:16px;">
+        <div class="card-header">
+          <div class="card-title">💎 貯蓄目標</div>
+          <div style="font-size:12px;color:var(--blue-light);cursor:pointer;font-weight:600;" onclick="openSavingsModal()">＋ 目標を追加</div>
+        </div>
+        <div class="card-body" id="savingsList">
+          <div class="empty-state"><div class="empty-icon">💎</div><p>貯蓄目標を設定しましょう</p></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─── ローンページ ─── -->
+    <div id="page-loan" style="display:none;">
+      <div class="card" style="margin-bottom:16px;">
+        <div class="card-header">
+          <div class="card-title">🏦 ローン管理</div>
+          <div style="font-size:12px;color:var(--blue-light);cursor:pointer;font-weight:600;" onclick="openLoanModal()">＋ ローンを追加</div>
+        </div>
+        <div class="card-body" id="loanList">
+          <div class="empty-state"><div class="empty-icon">🏦</div><p>ローンを登録しましょう</p></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─── サブスクページ ─── -->
+    <div id="page-subscriptions" style="display:none;">
+      <!-- 月額合計サマリー -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
+        <div class="card" style="text-align:center;padding:16px;">
+          <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px;">月額合計</div>
+          <div id="subMonthly" style="font-size:22px;font-weight:700;font-family:'Space Mono',monospace;color:#ef4444;">¥0</div>
+        </div>
+        <div class="card" style="text-align:center;padding:16px;">
+          <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px;">年額換算</div>
+          <div id="subYearly" style="font-size:22px;font-weight:700;font-family:'Space Mono',monospace;color:#f59e0b;">¥0</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">🔄 サブスク管理</div>
+          <div style="font-size:12px;color:var(--blue-light);cursor:pointer;font-weight:600;" onclick="openSubModal()">＋ 追加</div>
+        </div>
+        <div class="card-body" id="subList">
+          <div class="empty-state"><div class="empty-icon">🔄</div><p>サブスクを登録しましょう</p></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─── クレジットカード管理ページ ─── -->
+    <div id="page-creditcard" style="display:none;">
+
+      <!-- 合計サマリーバナー -->
+      <div class="card" style="margin-bottom:16px;background:linear-gradient(135deg,rgba(139,92,246,0.12),rgba(236,72,153,0.08));border-color:rgba(139,92,246,0.3);">
+        <div class="card-body">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;margin-bottom:14px;">
+            <div>
+              <div style="font-size:11px;color:var(--text-muted);margin-bottom:2px;">今月のカード利用合計</div>
+              <div id="ccTotalSpend" style="font-size:26px;font-weight:700;font-family:'Space Mono',monospace;color:#8b5cf6;">¥0</div>
+            </div>
+            <div style="text-align:right;">
+              <div style="font-size:10px;color:var(--text-muted);">合計獲得ポイント</div>
+              <div id="ccTotalPoints" style="font-size:20px;font-weight:700;font-family:'Space Mono',monospace;color:#f59e0b;">0 pt</div>
+            </div>
+          </div>
+          <!-- 支払い期限が近いカード警告 -->
+          <div id="ccUpcomingAlert" style="display:none;"></div>
+        </div>
+      </div>
+
+      <!-- カード一覧 -->
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+        <div style="font-size:14px;font-weight:600;color:var(--text-secondary);">登録カード</div>
+        <button onclick="openCCModal()" style="background:rgba(139,92,246,0.15);border:1px solid rgba(139,92,246,0.4);border-radius:8px;padding:5px 12px;color:#a78bfa;font-size:12px;cursor:pointer;font-family:inherit;font-weight:600;">＋ カードを追加</button>
+      </div>
+      <div id="ccCards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px;margin-bottom:16px;"></div>
+
+      <!-- 利用明細リスト -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">📋 今月の利用明細</div>
+          <div style="font-size:12px;color:#a78bfa;cursor:pointer;font-weight:600;" onclick="openCCTxModal()">＋ 利用を記録</div>
+        </div>
+        <div class="card-body" id="ccTxList">
+          <div class="empty-state"><div class="empty-icon">💳</div><p>利用明細を記録しましょう</p></div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ─── 収入目標管理ページ ─── -->
+    <div id="page-income-goal" style="display:none;">
+
+      <!-- ── 合計サマリーバナー ── -->
+      <div class="card" style="margin-bottom:16px;background:linear-gradient(135deg,rgba(16,185,129,0.1),rgba(59,130,246,0.1));border-color:rgba(16,185,129,0.3);">
+        <div class="card-body">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
+            <div>
+              <div style="font-size:11px;color:var(--text-muted);margin-bottom:2px;">今月の合計収入目標</div>
+              <div id="igTotalTarget" style="font-size:26px;font-weight:700;font-family:'Space Mono',monospace;color:var(--blue-light);">¥0</div>
+            </div>
+            <div style="display:flex;gap:16px;">
+              <div style="text-align:right;">
+                <div style="font-size:10px;color:var(--text-muted);">合計稼ぎ</div>
+                <div id="igTotalEarned" style="font-size:18px;font-weight:700;font-family:'Space Mono',monospace;color:#10b981;">¥0</div>
+              </div>
+              <div style="text-align:right;">
+                <div style="font-size:10px;color:var(--text-muted);">残り</div>
+                <div id="igTotalRemain" style="font-size:18px;font-weight:700;font-family:'Space Mono',monospace;color:#ef4444;">¥0</div>
+              </div>
+            </div>
+          </div>
+          <div style="background:rgba(255,255,255,0.07);border-radius:999px;height:10px;overflow:hidden;margin-bottom:6px;">
+            <div id="igTotalBar" style="height:100%;border-radius:999px;background:linear-gradient(90deg,#10b981,#3b82f6);width:0%;transition:width 0.8s;"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;">
+            <span id="igTotalRate" style="font-size:12px;font-weight:700;color:#10b981;">0%</span>
+            <span id="igTotalHours" style="font-size:11px;color:var(--text-muted);"></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── バイト先カード ── -->
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+        <div style="font-size:14px;font-weight:600;color:var(--text-secondary);">バイト先ごとの目標</div>
+        <button onclick="openJobModal()" style="background:var(--blue-glow);border:1px solid var(--blue);border-radius:8px;padding:5px 12px;color:var(--blue-light);font-size:12px;cursor:pointer;font-family:inherit;font-weight:600;">＋ バイト先を追加</button>
+      </div>
+      <div id="jobCards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px;margin-bottom:16px;"></div>
+
+      <!-- ── 勤務記録リスト ── -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">📋 日別勤務記録</div>
+          <div style="font-size:12px;color:var(--blue-light);cursor:pointer;font-weight:600;" onclick="openWorkLogModal()">＋ 記録を追加</div>
+        </div>
+        <div class="card-body" id="workLogList">
+          <div class="empty-state"><div class="empty-icon">⏱️</div><p>勤務記録を追加しましょう</p></div>
+        </div>
+      </div>
+
+
+    <!-- ─── レポートページ ─── -->
+    <div id="page-report" style="display:none;">
+
+      <!-- 年選択 + タブ -->
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <button onclick="reportYearShift(-1)" style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:8px;padding:6px 10px;color:var(--text-secondary);cursor:pointer;font-size:14px;">◀</button>
+          <div id="reportYearLabel" style="font-size:16px;font-weight:700;min-width:70px;text-align:center;"></div>
+          <button onclick="reportYearShift(1)"  style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:8px;padding:6px 10px;color:var(--text-secondary);cursor:pointer;font-size:14px;">▶</button>
+        </div>
+        <div style="display:flex;background:var(--bg-secondary);border-radius:10px;padding:3px;gap:3px;">
+          <button id="rTabMonthly" onclick="switchReportTab('monthly')" style="border:none;border-radius:8px;padding:7px 16px;font-size:12px;cursor:pointer;font-weight:600;background:var(--blue);color:#fff;font-family:inherit;">月間</button>
+          <button id="rTabYearly"  onclick="switchReportTab('yearly')"  style="border:none;border-radius:8px;padding:7px 16px;font-size:12px;cursor:pointer;font-weight:600;background:transparent;color:var(--text-muted);font-family:inherit;">年間</button>
+        </div>
+      </div>
+
+      <!-- ── 月間レポート ── -->
+      <div id="reportMonthly">
+        <!-- 月選択 -->
+        <div style="display:flex;justify-content:center;gap:6px;flex-wrap:wrap;margin-bottom:16px;" id="reportMonthPicker"></div>
+
+        <!-- 前月比較カード -->
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px;" id="reportCompareCards"></div>
+
+        <!-- 負家比率 -->
+        <div class="card" style="margin-bottom:16px;" id="reportBurnCard">
+          <div class="card-body">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+              <span style="font-size:13px;font-weight:600;">負家比率（支出 ÷ 収入）</span>
+              <span id="reportBurnPct" style="font-size:18px;font-weight:700;font-family:'Space Mono',monospace;">-</span>
+            </div>
+            <div style="background:var(--bg-secondary);border-radius:999px;height:10px;overflow:hidden;">
+              <div id="reportBurnBar" style="height:100%;border-radius:999px;width:0%;transition:width 0.6s;"></div>
+            </div>
+            <div style="font-size:11px;color:var(--text-muted);margin-top:6px;" id="reportBurnNote"></div>
+          </div>
+        </div>
+
+        <!-- カテゴリ別支出ランキング -->
+        <div class="card" style="margin-bottom:16px;">
+          <div class="card-header"><div class="card-title">🏆 カテゴリ別支出ランキング</div></div>
+          <div class="card-body" id="reportCatRanking"></div>
+        </div>
+      </div>
+
+      <!-- ── 年間レポート ── -->
+      <div id="reportYearly" style="display:none;">
+
+        <!-- 年間サマリー3枚 -->
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px;" id="reportYearlySummary"></div>
+
+        <!-- 月別推移グラフ（Chart.js） -->
+        <div class="card" style="margin-bottom:16px;">
+          <div class="card-header"><div class="card-title">📈 月別収支推移</div></div>
+          <div class="card-body" style="padding-top:10px;">
+            <canvas id="reportYearChart" height="200"></canvas>
+          </div>
+        </div>
+
+        <!-- 負家比率 推移 -->
+        <div class="card" style="margin-bottom:16px;">
+          <div class="card-header"><div class="card-title">🔥 負家比率の推移</div></div>
+          <div class="card-body" style="padding-top:10px;">
+            <canvas id="reportBurnChart" height="160"></canvas>
+          </div>
+        </div>
+
+        <!-- カテゴリ別年間ランキング -->
+        <div class="card">
+          <div class="card-header"><div class="card-title">🏆 年間カテゴリ別支出ランキング</div></div>
+          <div class="card-body" id="reportYearlyCatRanking"></div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ─── バックアップ・Excel ページ ─── -->
+    <div id="page-backup" style="display:none;">
+
+      <!-- Excel出力セクション -->
+      <div class="card" style="margin-bottom:16px;">
+        <div class="card-header">
+          <div class="card-title">📤 Excel出力</div>
+        </div>
+        <div class="card-body">
+          <p style="font-size:13px;color:var(--text-muted);margin-bottom:16px;">出力したいデータを選んでダウンロードしてください。</p>
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;">
+            <button onclick="exportExcel('transactions')" style="background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.3);border-radius:10px;padding:14px;cursor:pointer;text-align:left;font-family:inherit;">
+              <div style="font-size:20px;margin-bottom:6px;">📋</div>
+              <div style="font-size:13px;font-weight:600;color:#10b981;">収支明細</div>
+              <div style="font-size:11px;color:var(--text-muted);">全取引を一覧出力</div>
+            </button>
+            <button onclick="exportExcel('monthly')" style="background:rgba(59,130,246,0.1);border:1px solid rgba(59,130,246,0.3);border-radius:10px;padding:14px;cursor:pointer;text-align:left;font-family:inherit;">
+              <div style="font-size:20px;margin-bottom:6px;">📊</div>
+              <div style="font-size:13px;font-weight:600;color:#3b82f6;">月別サマリー</div>
+              <div style="font-size:11px;color:var(--text-muted);">月ごとの収支集計</div>
+            </button>
+            <button onclick="exportExcel('budget')" style="background:rgba(139,92,246,0.1);border:1px solid rgba(139,92,246,0.3);border-radius:10px;padding:14px;cursor:pointer;text-align:left;font-family:inherit;">
+              <div style="font-size:20px;margin-bottom:6px;">🎯</div>
+              <div style="font-size:13px;font-weight:600;color:#8b5cf6;">予算vs実績</div>
+              <div style="font-size:11px;color:var(--text-muted);">今月の予算達成状況</div>
+            </button>
+            <button onclick="exportExcel('creditcard')" style="background:rgba(236,72,153,0.1);border:1px solid rgba(236,72,153,0.3);border-radius:10px;padding:14px;cursor:pointer;text-align:left;font-family:inherit;">
+              <div style="font-size:20px;margin-bottom:6px;">💳</div>
+              <div style="font-size:13px;font-weight:600;color:#ec4899;">クレカ明細</div>
+              <div style="font-size:11px;color:var(--text-muted);">カード別利用明細</div>
+            </button>
+            <button onclick="exportExcel('worklogs')" style="background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.3);border-radius:10px;padding:14px;cursor:pointer;text-align:left;font-family:inherit;">
+              <div style="font-size:20px;margin-bottom:6px;">⏱️</div>
+              <div style="font-size:13px;font-weight:600;color:#f59e0b;">勤務記録</div>
+              <div style="font-size:11px;color:var(--text-muted);">バイト別の勤務履歴</div>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- バックアップセクション -->
+      <div class="card" style="margin-bottom:16px;">
+        <div class="card-header">
+          <div class="card-title">💾 データバックアップ</div>
+        </div>
+        <div class="card-body">
+          <p style="font-size:13px;color:var(--text-muted);margin-bottom:14px;">全データをJSONファイルで保存します。復元もここから行えます。</p>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;">
+            <button onclick="backupData()" style="flex:1;min-width:140px;background:var(--blue-glow);border:1px solid var(--blue);border-radius:10px;padding:14px;cursor:pointer;font-family:inherit;color:var(--blue-light);font-weight:600;font-size:13px;">
+              💾 バックアップを保存
+            </button>
+            <button onclick="document.getElementById('restoreInput').click()" style="flex:1;min-width:140px;background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.3);border-radius:10px;padding:14px;cursor:pointer;font-family:inherit;color:#f59e0b;font-weight:600;font-size:13px;">
+              📂 バックアップから復元
+            </button>
+            <input type="file" id="restoreInput" accept=".json" style="display:none;" onchange="restoreBackup(this)">
+          </div>
+          <!-- 自動バックアップ -->
+          <div style="background:var(--bg-secondary);border-radius:10px;padding:14px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+              <div>
+                <div style="font-size:13px;font-weight:600;">自動バックアップ</div>
+                <div style="font-size:11px;color:var(--text-muted);">アプリを開くたびにブラウザに自動保存</div>
+              </div>
+              <div onclick="toggleAutoBackup()" id="autoBackupToggle"
+                style="width:44px;height:24px;border-radius:999px;background:var(--blue);cursor:pointer;position:relative;transition:background 0.2s;">
+                <div id="autoBackupKnob" style="width:18px;height:18px;border-radius:50%;background:#fff;position:absolute;top:3px;left:23px;transition:left 0.2s;"></div>
+              </div>
+            </div>
+            <div style="font-size:11px;color:var(--text-muted);" id="autoBackupStatus">最終自動保存：未保存</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- データ統計 -->
+      <div class="card">
+        <div class="card-header"><div class="card-title">📈 データ統計</div></div>
+        <div class="card-body" id="dataStats"></div>
+      </div>
+
+    </div>
+    </div>
+  </main>
+</div>
+
+<!-- モバイルナビ -->
+<div class="mobile-header">
+  <div class="mobile-nav">
+    <div class="mobile-nav-item active">
+      <div class="mobile-nav-icon">🏠</div>ホーム
+    </div>
+    <div class="mobile-nav-item">
+      <div class="mobile-nav-icon">📅</div>カレンダー
+    </div>
+    <div class="mobile-nav-item">
+      <div class="mobile-nav-icon">＋</div>追加
+    </div>
+    <div class="mobile-nav-item">
+      <div class="mobile-nav-icon">📊</div>グラフ
+    </div>
+    <div class="mobile-nav-item">
+      <div class="mobile-nav-icon">⚙️</div>設定
+    </div>
+  </div>
+</div>
+
+<!-- ルーム追加モーダル -->
+<div class="modal-overlay" id="addRoomModal">
+  <div class="modal">
+    <div class="modal-title">🏠 ルームを追加</div>
+    <div class="form-group">
+      <label class="form-label">ルーム名</label>
+      <input class="form-input" id="roomName" placeholder="例：クレジットカード">
+    </div>
+    <div class="form-group">
+      <label class="form-label">アイコン</label>
+      <div class="icon-picker" id="iconPicker">
+        <div class="icon-option selected" data-icon="💵" onclick="selectIcon(this)">💵</div>
+        <div class="icon-option" data-icon="💳" onclick="selectIcon(this)">💳</div>
+        <div class="icon-option" data-icon="🏦" onclick="selectIcon(this)">🏦</div>
+        <div class="icon-option" data-icon="👨‍👩‍👧" onclick="selectIcon(this)">👨‍👩‍👧</div>
+        <div class="icon-option" data-icon="🏠" onclick="selectIcon(this)">🏠</div>
+        <div class="icon-option" data-icon="🚗" onclick="selectIcon(this)">🚗</div>
+        <div class="icon-option" data-icon="💼" onclick="selectIcon(this)">💼</div>
+        <div class="icon-option" data-icon="🎯" onclick="selectIcon(this)">🎯</div>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">カラー</label>
+      <div class="color-picker">
+        <div class="color-option selected" style="background:#3b82f6" data-color="#3b82f6" onclick="selectColor(this)"></div>
+        <div class="color-option" style="background:#10b981" data-color="#10b981" onclick="selectColor(this)"></div>
+        <div class="color-option" style="background:#8b5cf6" data-color="#8b5cf6" onclick="selectColor(this)"></div>
+        <div class="color-option" style="background:#f59e0b" data-color="#f59e0b" onclick="selectColor(this)"></div>
+        <div class="color-option" style="background:#ef4444" data-color="#ef4444" onclick="selectColor(this)"></div>
+        <div class="color-option" style="background:#ec4899" data-color="#ec4899" onclick="selectColor(this)"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeModal('addRoomModal')">キャンセル</button>
+      <button class="btn-primary-full" onclick="addRoom()">追加する</button>
+    </div>
+  </div>
+</div>
+
+<!-- 収支追加モーダル -->
+<div class="modal-overlay" id="addTransactionModal">
+  <div class="modal" id="txModal">
+    <div class="modal-title">✏️ 収支を追加</div>
+
+    <!-- 収入/支出切り替え -->
+    <div style="display:flex;gap:8px;margin-bottom:12px;">
+      <button class="type-btn active" id="btnExpense" onclick="setType('expense')"
+        style="flex:1;padding:10px;border-radius:10px;border:2px solid var(--red);background:rgba(239,68,68,0.15);color:#ef4444;font-size:14px;font-weight:700;cursor:pointer;font-family:'Noto Sans JP',sans-serif;transition:all 0.2s;">
+        🔴 支出
+      </button>
+      <button class="type-btn" id="btnIncome" onclick="setType('income')"
+        style="flex:1;padding:10px;border-radius:10px;border:2px solid var(--border);background:transparent;color:var(--text-muted);font-size:14px;font-weight:700;cursor:pointer;font-family:'Noto Sans JP',sans-serif;transition:all 0.2s;">
+        🟢 収入
+      </button>
+    </div>
+
+    <!-- 金額表示 -->
+    <div style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:10px;padding:10px 14px;margin-bottom:10px;text-align:right;">
+      <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px;">金額</div>
+      <div id="calcDisplay" style="font-size:26px;font-weight:700;font-family:'Space Mono',monospace;color:var(--text-primary);min-height:32px;">0</div>
+      <div id="calcExpression" style="font-size:11px;color:var(--text-muted);min-height:14px;margin-top:2px;"></div>
+    </div>
+
+    <!-- 電卓 -->
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:12px;">
+      <button class="calc-btn" onclick="calcInput('7')">7</button>
+      <button class="calc-btn" onclick="calcInput('8')">8</button>
+      <button class="calc-btn" onclick="calcInput('9')">9</button>
+      <button class="calc-btn op" onclick="calcInput('÷')">÷</button>
+      <button class="calc-btn" onclick="calcInput('4')">4</button>
+      <button class="calc-btn" onclick="calcInput('5')">5</button>
+      <button class="calc-btn" onclick="calcInput('6')">6</button>
+      <button class="calc-btn op" onclick="calcInput('×')">×</button>
+      <button class="calc-btn" onclick="calcInput('1')">1</button>
+      <button class="calc-btn" onclick="calcInput('2')">2</button>
+      <button class="calc-btn" onclick="calcInput('3')">3</button>
+      <button class="calc-btn op" onclick="calcInput('-')">−</button>
+      <button class="calc-btn" onclick="calcInput('0')">0</button>
+      <button class="calc-btn" onclick="calcInput('00')">00</button>
+      <button class="calc-btn" onclick="calcInput('.')">.</button>
+      <button class="calc-btn op" onclick="calcInput('+')">＋</button>
+      <button class="calc-btn" style="grid-column:span 2;background:rgba(239,68,68,0.15);color:#ef4444;border-color:rgba(239,68,68,0.3);" onclick="calcClear()">C</button>
+      <button class="calc-btn" onclick="calcBackspace()">⌫</button>
+      <button class="calc-btn op" style="background:rgba(59,130,246,0.2);color:var(--blue-light);border-color:var(--blue);" onclick="calcEqual()">=</button>
+    </div>
+
+    <!-- 入力フォーム -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
+      <div class="form-group" style="margin-bottom:0;">
+        <label class="form-label">内容・メモ</label>
+        <input class="form-input" id="txName" placeholder="例：スーパーで買い物">
+      </div>
+      <div class="form-group" style="margin-bottom:0;">
+        <label class="form-label">日付</label>
+        <input class="form-input" id="txDate" type="date">
+      </div>
+    </div>
+
+    <!-- カテゴリ -->
+    <div class="form-group">
+      <label class="form-label">カテゴリ</label>
+      <div id="categoryPicker" style="display:flex;gap:8px;flex-wrap:wrap;"></div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeModal('addTransactionModal')">キャンセル</button>
+      <button class="btn-primary-full" onclick="saveTransaction()">保存する</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- カテゴリ追加モーダル -->
+<div class="modal-overlay" id="addCategoryModal">
+  <div class="modal" style="width:320px;">
+    <div class="modal-title">🏷️ カテゴリを追加</div>
+    <div class="form-group">
+      <label class="form-label">カテゴリ名</label>
+      <input class="form-input" id="newCatName" placeholder="例：ペット代">
+    </div>
+    <div class="form-group">
+      <label class="form-label">アイコン</label>
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
+        <div id="selectedEmojiPreview" style="width:48px;height:48px;border-radius:12px;background:var(--bg-secondary);border:2px solid var(--blue);display:flex;align-items:center;justify-content:center;font-size:24px;">📌</div>
+        <div style="font-size:12px;color:var(--text-muted);">下から選ぶか、直接入力</div>
+        <input id="newCatIcon" maxlength="2" style="width:52px;height:36px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:8px;color:var(--text-primary);font-size:18px;text-align:center;outline:none;" oninput="updateEmojiPreview(this.value)" value="📌">
+      </div>
+      <div style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:10px;padding:10px;">
+        <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px;">
+          <button onclick="setEmojiTab('money')" id="etab_money" class="etab active" style="font-size:11px;padding:3px 8px;border-radius:6px;border:1px solid var(--blue);background:var(--blue-glow);color:var(--blue-light);cursor:pointer;">💰 お金</button>
+          <button onclick="setEmojiTab('food')" id="etab_food" class="etab" style="font-size:11px;padding:3px 8px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--text-muted);cursor:pointer;">🍱 食事</button>
+          <button onclick="setEmojiTab('life')" id="etab_life" class="etab" style="font-size:11px;padding:3px 8px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--text-muted);cursor:pointer;">🏠 生活</button>
+          <button onclick="setEmojiTab('fun')" id="etab_fun" class="etab" style="font-size:11px;padding:3px 8px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--text-muted);cursor:pointer;">🎮 娯楽</button>
+          <button onclick="setEmojiTab('transport')" id="etab_transport" class="etab" style="font-size:11px;padding:3px 8px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--text-muted);cursor:pointer;">🚗 移動</button>
+          <button onclick="setEmojiTab('other')" id="etab_other" class="etab" style="font-size:11px;padding:3px 8px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--text-muted);cursor:pointer;">📦 その他</button>
+        </div>
+        <div id="emojiGrid" style="display:grid;grid-template-columns:repeat(8,1fr);gap:4px;"></div>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">カラー</label>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <div class="newcat-color color-option selected" data-color="#3b82f6" onclick="selectNewCatColor(this)" style="background:#3b82f6;"></div>
+        <div class="newcat-color color-option" data-color="#10b981" onclick="selectNewCatColor(this)" style="background:#10b981;"></div>
+        <div class="newcat-color color-option" data-color="#f59e0b" onclick="selectNewCatColor(this)" style="background:#f59e0b;"></div>
+        <div class="newcat-color color-option" data-color="#ef4444" onclick="selectNewCatColor(this)" style="background:#ef4444;"></div>
+        <div class="newcat-color color-option" data-color="#8b5cf6" onclick="selectNewCatColor(this)" style="background:#8b5cf6;"></div>
+        <div class="newcat-color color-option" data-color="#ec4899" onclick="selectNewCatColor(this)" style="background:#ec4899;"></div>
+        <div class="newcat-color color-option" data-color="#f97316" onclick="selectNewCatColor(this)" style="background:#f97316;"></div>
+        <div class="newcat-color color-option" data-color="#06b6d4" onclick="selectNewCatColor(this)" style="background:#06b6d4;"></div>
+        <div class="newcat-color color-option" data-color="#94a3b8" onclick="selectNewCatColor(this)" style="background:#94a3b8;"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeModal('addCategoryModal')">キャンセル</button>
+      <button class="btn-primary-full" onclick="saveNewCategory()">追加する</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- 予算設定モーダル -->
+<div class="modal-overlay" id="budgetModal">
+  <div class="modal" style="width:400px;">
+    <div class="modal-title" id="budgetModalTitle">🎯 予算を設定</div>
+
+    <!-- ステップ1: カテゴリ選択 -->
+    <div id="budgetStep1">
+      <div style="font-size:12px;color:var(--text-muted);margin-bottom:10px;">支出カテゴリから選んでください</div>
+      <!-- 既存カテゴリ一覧 -->
+      <div id="budgetCatPicker" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;"></div>
+      <div style="border-top:1px solid var(--border);padding-top:12px;margin-top:4px;">
+        <div style="font-size:12px;color:var(--text-muted);margin-bottom:8px;">または新しいカテゴリを手入力</div>
+        <div style="display:flex;gap:8px;">
+          <input class="form-input" id="budgetCatIcon" placeholder="🍱" maxlength="2"
+            style="width:54px;font-size:18px;text-align:center;flex-shrink:0;">
+          <input class="form-input" id="budgetCatName" placeholder="カテゴリ名" style="flex:1;">
+        </div>
+      </div>
+    </div>
+
+    <!-- 選択中カテゴリ表示 -->
+    <div id="budgetSelectedCat" style="display:none;background:var(--bg-secondary);border:1px solid var(--border);border-radius:10px;padding:10px 14px;margin-bottom:14px;display:none;align-items:center;gap:10px;">
+      <div id="budgetSelIcon" style="font-size:22px;"></div>
+      <div id="budgetSelName" style="font-size:15px;font-weight:600;"></div>
+      <div style="margin-left:auto;font-size:11px;color:var(--blue-light);cursor:pointer;" onclick="resetBudgetCat()">変更する</div>
+    </div>
+
+    <!-- ステップ2: 金額入力 -->
+    <div class="form-group">
+      <label class="form-label">月の予算金額（円）</label>
+      <input class="form-input" id="budgetAmount" type="number" placeholder="例：30000" min="0"
+        style="font-size:20px;font-family:'Space Mono',monospace;text-align:right;">
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeModal('budgetModal')">キャンセル</button>
+      <button class="btn-primary-full" id="budgetSaveBtn" onclick="saveBudget()">保存する</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- 貯蓄目標モーダル -->
+<div class="modal-overlay" id="savingsModal">
+  <div class="modal" style="width:360px;">
+    <div class="modal-title" id="savingsModalTitle">💎 貯蓄目標を追加</div>
+    <div class="form-group">
+      <label class="form-label">目標名</label>
+      <input class="form-input" id="savName" placeholder="例：旅行資金・車の頭金">
+    </div>
+    <div class="form-group">
+      <label class="form-label">目標金額（円）</label>
+      <input class="form-input" id="savTarget" type="number" placeholder="例：500000" min="0">
+    </div>
+    <div class="form-group">
+      <label class="form-label">現在の貯蓄額（円）</label>
+      <input class="form-input" id="savCurrent" type="number" placeholder="例：100000" min="0">
+    </div>
+    <div class="form-group">
+      <label class="form-label">月々の積立予定額（円）</label>
+      <input class="form-input" id="savMonthly" type="number" placeholder="例：20000" min="0">
+    </div>
+    <div class="form-group">
+      <label class="form-label">アイコン</label>
+      <input class="form-input" id="savIcon" maxlength="2" placeholder="✈️" style="font-size:20px;text-align:center;width:60px;">
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeModal('savingsModal')">キャンセル</button>
+      <button class="btn-primary-full" id="savSaveBtn" onclick="saveSavings()">保存する</button>
+    </div>
+  </div>
+</div>
+
+<!-- ローンモーダル -->
+<div class="modal-overlay" id="loanModal">
+  <div class="modal" style="width:360px;">
+    <div class="modal-title" id="loanModalTitle">🏦 ローンを追加</div>
+    <div class="form-group">
+      <label class="form-label">ローン名</label>
+      <input class="form-input" id="loanName" placeholder="例：住宅ローン・車のローン">
+    </div>
+    <div class="form-group">
+      <label class="form-label">借入総額（円）</label>
+      <input class="form-input" id="loanTotal" type="number" placeholder="例：3000000" min="0">
+    </div>
+    <div class="form-group">
+      <label class="form-label">月々の返済額（円）</label>
+      <input class="form-input" id="loanMonthly" type="number" placeholder="例：50000" min="0">
+    </div>
+    <div class="form-group">
+      <label class="form-label">残り返済回数（回）</label>
+      <input class="form-input" id="loanRemain" type="number" placeholder="例：240" min="0">
+    </div>
+    <div class="form-group">
+      <label class="form-label">アイコン</label>
+      <input class="form-input" id="loanIcon" maxlength="2" placeholder="🏠" style="font-size:20px;text-align:center;width:60px;">
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeModal('loanModal')">キャンセル</button>
+      <button class="btn-primary-full" id="loanSaveBtn" onclick="saveLoan()">保存する</button>
+    </div>
+  </div>
+</div>
+
+<!-- サブスクモーダル -->
+<div class="modal-overlay" id="subModal">
+  <div class="modal" style="width:360px;">
+    <div class="modal-title" id="subModalTitle">🔄 サブスクを追加</div>
+    <div class="form-group">
+      <label class="form-label">サービス名</label>
+      <input class="form-input" id="subName" placeholder="例：Netflix・Spotify">
+    </div>
+    <div class="form-group">
+      <label class="form-label">月額（円）</label>
+      <input class="form-input" id="subAmount" type="number" placeholder="例：1490" min="0">
+    </div>
+    <div class="form-group">
+      <label class="form-label">課金日（毎月何日）</label>
+      <input class="form-input" id="subBillingDay" type="number" placeholder="例：1" min="1" max="31">
+    </div>
+    <div class="form-group">
+      <label class="form-label">カテゴリ</label>
+      <select class="form-input" id="subCategory" style="cursor:pointer;">
+        <option value="動画">🎬 動画</option>
+        <option value="音楽">🎵 音楽</option>
+        <option value="ゲーム">🎮 ゲーム</option>
+        <option value="仕事">💼 仕事・ツール</option>
+        <option value="クラウド">☁️ クラウド</option>
+        <option value="フィットネス">💪 フィットネス</option>
+        <option value="その他">📦 その他</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">アイコン</label>
+      <input class="form-input" id="subIcon" maxlength="2" placeholder="📺" style="font-size:20px;text-align:center;width:60px;">
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeModal('subModal')">キャンセル</button>
+      <button class="btn-primary-full" id="subSaveBtn" onclick="saveSub()">保存する</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- バイト先追加モーダル -->
+<div class="modal-overlay" id="jobModal">
+  <div class="modal" style="width:360px;">
+    <div class="modal-title" id="jobModalTitle">💼 バイト先を追加</div>
+    <div class="form-group">
+      <label class="form-label">バイト先の名前</label>
+      <input class="form-input" id="jobName" placeholder="例：コンビニA・居酒屋B">
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
+      <div class="form-group" style="margin-bottom:0;">
+        <label class="form-label">時給（円）</label>
+        <input class="form-input" id="jobWage" type="number" placeholder="例：1100" min="0">
+      </div>
+      <div class="form-group" style="margin-bottom:0;">
+        <label class="form-label">月目標収入（円）</label>
+        <input class="form-input" id="jobTarget" type="number" placeholder="例：80000" min="0">
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">アイコン・カラー</label>
+      <div style="display:flex;gap:10px;align-items:center;">
+        <input class="form-input" id="jobIcon" maxlength="2" placeholder="💼" style="width:54px;font-size:20px;text-align:center;flex-shrink:0;">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <div class="job-color" data-color="#3b82f6" onclick="selectJobColor(this)" style="width:26px;height:26px;border-radius:50%;background:#3b82f6;cursor:pointer;border:2px solid white;"></div>
+          <div class="job-color" data-color="#10b981" onclick="selectJobColor(this)" style="width:26px;height:26px;border-radius:50%;background:#10b981;cursor:pointer;border:2px solid transparent;"></div>
+          <div class="job-color" data-color="#f59e0b" onclick="selectJobColor(this)" style="width:26px;height:26px;border-radius:50%;background:#f59e0b;cursor:pointer;border:2px solid transparent;"></div>
+          <div class="job-color" data-color="#8b5cf6" onclick="selectJobColor(this)" style="width:26px;height:26px;border-radius:50%;background:#8b5cf6;cursor:pointer;border:2px solid transparent;"></div>
+          <div class="job-color" data-color="#ef4444" onclick="selectJobColor(this)" style="width:26px;height:26px;border-radius:50%;background:#ef4444;cursor:pointer;border:2px solid transparent;"></div>
+          <div class="job-color" data-color="#ec4899" onclick="selectJobColor(this)" style="width:26px;height:26px;border-radius:50%;background:#ec4899;cursor:pointer;border:2px solid transparent;"></div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeModal('jobModal')">キャンセル</button>
+      <button class="btn-primary-full" id="jobSaveBtn" onclick="saveJob()">保存する</button>
+    </div>
+  </div>
+</div>
+
+<!-- 勤務記録モーダル -->
+<div class="modal-overlay" id="workLogModal">
+  <div class="modal" style="width:340px;">
+    <div class="modal-title" id="workLogModalTitle">⏱️ 勤務記録を追加</div>
+    <div class="form-group">
+      <label class="form-label">バイト先</label>
+      <select class="form-input" id="wlJobId" onchange="onJobSelect()" style="cursor:pointer;"></select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">日付</label>
+      <input class="form-input" id="wlDate" type="date">
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
+      <div class="form-group" style="margin-bottom:0;">
+        <label class="form-label">勤務時間（h）</label>
+        <input class="form-input" id="wlHours" type="number" placeholder="例：8" min="0" max="24" step="0.5" oninput="calcWorkPay()">
+      </div>
+      <div class="form-group" style="margin-bottom:0;">
+        <label class="form-label">時給（円）</label>
+        <input class="form-input" id="wlWage" type="number" placeholder="例：1100" min="0" oninput="calcWorkPay()">
+      </div>
+    </div>
+    <div style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:10px;padding:12px;text-align:center;margin-bottom:12px;">
+      <div style="font-size:10px;color:var(--text-muted);margin-bottom:3px;">この日の稼ぎ（自動計算）</div>
+      <div id="wlCalcResult" style="font-size:24px;font-weight:700;font-family:'Space Mono',monospace;color:#10b981;">¥0</div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">メモ（任意）</label>
+      <input class="form-input" id="wlMemo" placeholder="例：夜シフト">
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeModal('workLogModal')">キャンセル</button>
+      <button class="btn-primary-full" id="wlSaveBtn" onclick="saveWorkLog()">保存する</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- カード登録モーダル -->
+<div class="modal-overlay" id="ccModal">
+  <div class="modal" style="width:380px;">
+    <div class="modal-title" id="ccModalTitle">💳 カードを追加</div>
+    <div class="form-group">
+      <label class="form-label">カード名</label>
+      <input class="form-input" id="ccName" placeholder="例：楽天カード・三井住友カード">
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
+      <div class="form-group" style="margin-bottom:0;">
+        <label class="form-label">締め日（毎月何日）</label>
+        <input class="form-input" id="ccCloseDay" type="number" min="1" max="31" placeholder="例：15">
+      </div>
+      <div class="form-group" style="margin-bottom:0;">
+        <label class="form-label">支払日（毎月何日）</label>
+        <input class="form-input" id="ccPayDay" type="number" min="1" max="31" placeholder="例：10">
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">ポイント還元率（%）</label>
+      <input class="form-input" id="ccRate" type="number" min="0" max="100" step="0.1" placeholder="例：1.0（1%還元）">
+    </div>
+    <div class="form-group">
+      <label class="form-label">現在のポイント残高</label>
+      <input class="form-input" id="ccPoints" type="number" min="0" placeholder="例：3500">
+    </div>
+    <div class="form-group">
+      <label class="form-label">ポイント有効期限</label>
+      <input class="form-input" id="ccExpiry" type="date">
+    </div>
+    <div class="form-group">
+      <label class="form-label">カードカラー</label>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <div class="cc-color" data-color="#8b5cf6" onclick="selectCCColor(this)" style="width:26px;height:26px;border-radius:50%;background:#8b5cf6;cursor:pointer;border:2px solid white;"></div>
+        <div class="cc-color" data-color="#3b82f6" onclick="selectCCColor(this)" style="width:26px;height:26px;border-radius:50%;background:#3b82f6;cursor:pointer;border:2px solid transparent;"></div>
+        <div class="cc-color" data-color="#ec4899" onclick="selectCCColor(this)" style="width:26px;height:26px;border-radius:50%;background:#ec4899;cursor:pointer;border:2px solid transparent;"></div>
+        <div class="cc-color" data-color="#ef4444" onclick="selectCCColor(this)" style="width:26px;height:26px;border-radius:50%;background:#ef4444;cursor:pointer;border:2px solid transparent;"></div>
+        <div class="cc-color" data-color="#f59e0b" onclick="selectCCColor(this)" style="width:26px;height:26px;border-radius:50%;background:#f59e0b;cursor:pointer;border:2px solid transparent;"></div>
+        <div class="cc-color" data-color="#10b981" onclick="selectCCColor(this)" style="width:26px;height:26px;border-radius:50%;background:#10b981;cursor:pointer;border:2px solid transparent;"></div>
+        <div class="cc-color" data-color="#06b6d4" onclick="selectCCColor(this)" style="width:26px;height:26px;border-radius:50%;background:#06b6d4;cursor:pointer;border:2px solid transparent;"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeModal('ccModal')">キャンセル</button>
+      <button class="btn-primary-full" id="ccSaveBtn" onclick="saveCC()">保存する</button>
+    </div>
+  </div>
+</div>
+
+<!-- 利用記録モーダル -->
+<div class="modal-overlay" id="ccTxModal">
+  <div class="modal" style="width:360px;">
+    <div class="modal-title" id="ccTxModalTitle">💳 カード利用を記録</div>
+    <div class="form-group">
+      <label class="form-label">カード</label>
+      <select class="form-input" id="ccTxCardId" onchange="onCCCardSelect()" style="cursor:pointer;"></select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">日付</label>
+      <input class="form-input" id="ccTxDate" type="date">
+    </div>
+    <div class="form-group">
+      <label class="form-label">利用店舗・内容</label>
+      <input class="form-input" id="ccTxDesc" placeholder="例：Amazon・コンビニ・ガソリン">
+    </div>
+    <div class="form-group">
+      <label class="form-label">金額（円）</label>
+      <input class="form-input" id="ccTxAmount" type="number" min="0" placeholder="例：3980" oninput="calcCCPoints()">
+    </div>
+    <!-- 獲得ポイントプレビュー -->
+    <div style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:10px;padding:12px;display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+      <div style="font-size:12px;color:var(--text-muted);">獲得予定ポイント</div>
+      <div id="ccTxPointsPreview" style="font-size:20px;font-weight:700;font-family:'Space Mono',monospace;color:#f59e0b;">0 pt</div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">カテゴリ</label>
+      <select class="form-input" id="ccTxCat" style="cursor:pointer;">
+        <option>食費</option><option>日用品</option><option>交通</option>
+        <option>娯楽</option><option>医療</option><option>衣類</option>
+        <option>サブスク</option><option>旅行</option><option>その他</option>
+      </select>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeModal('ccTxModal')">キャンセル</button>
+      <button class="btn-primary-full" id="ccTxSaveBtn" onclick="saveCCTx()">保存する</button>
+    </div>
+  </div>
+</div>
+
+<!-- トースト -->
+<div class="toast" id="toast">✅ <span id="toastMsg"></span></div>
+
+<script>
+
+// ─── Firebase同期 ───
+const FIREBASE_DOC_ID = 'main'; // 1ユーザー用の固定ドキュメントID
+
+// Firestoreにstateを保存
+async function saveToFirestore() {
+  if (!window._firebaseReady) return;
+  try {
+    const db = window._firebaseDb;
+    const docRef = window._firebaseDoc(db, 'kakeibo', FIREBASE_DOC_ID);
+    // currentMonthはISO文字列に変換して保存
+    const saveData = { ...state, currentMonth: state.currentMonth.toISOString() };
+    await window._firebaseSetDoc(docRef, saveData);
+  } catch(e) {
+    console.warn('Firestore保存エラー:', e);
+  }
+}
+
+// Firestoreからstateを読み込む
+async function loadFromFirestore() {
+  if (!window._firebaseReady) return false;
+  try {
+    const db = window._firebaseDb;
+    const docRef = window._firebaseDoc(db, 'kakeibo', FIREBASE_DOC_ID);
+    const snap = await window._firebaseGetDoc(docRef);
+    if (snap.exists()) {
+      const data = snap.data();
+      Object.keys(data).forEach(k => { if (k in state) state[k] = data[k]; });
+      if (data.currentMonth) state.currentMonth = new Date(data.currentMonth);
+      console.log('✅ Firestoreからデータを読み込みました');
+      return true;
+    }
+  } catch(e) {
+    console.warn('Firestore読み込みエラー:', e);
+  }
+  return false;
+}
+
+// Firebase準備完了後に初期化
+function initWithFirebase() {
+  // ローディング非表示
+  const loadingEl = document.getElementById('fbLoading');
+  if (loadingEl) loadingEl.style.display = 'none';
+
+  // 接続インジケーター更新
+  const dot = document.getElementById('fbDot');
+  const status = document.getElementById('fbStatus');
+  if (dot) dot.classList.add('connected');
+  if (status) status.textContent = 'クラウド同期';
+
+  loadFromFirestore().then(loaded => {
+    if (loaded) {
+      showToast('☁️ クラウドデータを読み込みました');
+    } else {
+      // 新規ユーザー：localStorageからマイグレーション
+      loadAutoBackup();
+      showToast('🆕 初回起動 - データはクラウドに保存されます');
+    }
+    updateMonthDisplay();
+    renderAll();
+  });
+
+  // リアルタイム同期（他デバイスで変更があった場合）
+  const db = window._firebaseDb;
+  const docRef = window._firebaseDoc(db, 'kakeibo', FIREBASE_DOC_ID);
+  window._firebaseOnSnapshot(docRef, (snap) => {
+    if (snap.exists() && window._syncEnabled) {
+      const data = snap.data();
+      Object.keys(data).forEach(k => { if (k in state) state[k] = data[k]; });
+      if (data.currentMonth) state.currentMonth = new Date(data.currentMonth);
+      updateMonthDisplay();
+      renderAll();
+    }
+  });
+}
+
+let _syncEnabled = false;
+window._syncEnabled = false;
+
+// Firebaseが準備できたら初期化、まだなら待機
+if (window._firebaseReady) {
+  window.addEventListener('DOMContentLoaded', () => {
+    setTimeout(() => { window._syncEnabled = true; initWithFirebase(); }, 500);
+  });
+} else {
+  window.addEventListener('firebaseReady', () => {
+    window._syncEnabled = true;
+    initWithFirebase();
+  });
+  // 念のためDOMContentLoadedでもトリガー
+  window.addEventListener('DOMContentLoaded', () => {
+    if (!window._syncEnabled) {
+      setTimeout(() => {
+        if (window._firebaseReady) {
+          window._syncEnabled = true;
+          initWithFirebase();
+        }
+      }, 1500);
+    }
+  });
+}
+
+// ─── 日付ユーティリティ（タイムゾーン問題を回避）
+function parseDateStr(dateStr) {
+  // "YYYY-MM-DD" を直接分解してローカルDateを作る
+  const [y, m, d] = dateStr.split('-').map(Number);
+  return new Date(y, m - 1, d);
+}
+function isSameMonth(dateStr, monthDate) {
+  const [y, m] = dateStr.split('-').map(Number);
+  return y === monthDate.getFullYear() && m === (monthDate.getMonth() + 1);
+}
+
+// 状態管理
+let state = {
+  rooms: [
+    { id: 1, name: '現金・日常収支', icon: '💵', color: '#3b82f6' },
+    { id: 2, name: 'クレジットカード', icon: '💳', color: '#8b5cf6' },
+  ],
+  currentRoom: 1,
+  currentMonth: new Date(),
+  transactions: [],
+  budgets: [],
+  savings: [],
+  loans: [],
+  subscriptions: [],
+  jobs: [],
+  workLogs: [],
+  cards: [],        // {id, name, color, closeDay, payDay, rate, points, expiry}
+  ccTransactions: [], // {id, cardId, date, desc, amount, points, category}
+  selectedIcon: '💵',
+  selectedColor: '#3b82f6',
+};
+
+// 日付表示
+function updateDate() {
+  const now = new Date();
+  const days = ['日','月','火','水','木','金','土'];
+  document.getElementById('headerDate').textContent = 
+    `${now.getFullYear()}/${String(now.getMonth()+1).padStart(2,'0')}/${String(now.getDate()).padStart(2,'0')} (${days[now.getDay()]})`;
+}
+
+// 月表示
+function updateMonthDisplay() {
+  const m = state.currentMonth;
+  document.getElementById('currentMonth').textContent = 
+    `${m.getFullYear()}年${m.getMonth()+1}月`;
+}
+
+function changeMonth(delta) {
+  state.currentMonth = new Date(state.currentMonth.getFullYear(), state.currentMonth.getMonth() + delta, 1);
+  updateMonthDisplay();
+  renderAll();
+}
+
+// ルーム描画
+function renderRooms() {
+  const list = document.getElementById('roomList');
+  list.innerHTML = state.rooms.map(room => `
+    <div class="room-item ${room.id === state.currentRoom ? 'active' : ''}" onclick="selectRoom(${room.id})">
+      <div class="room-icon" style="background:${room.color}22;border:1px solid ${room.color}44">${room.icon}</div>
+      <div class="room-info">
+        <div class="room-name">${room.name}</div>
+        <div class="room-balance positive">¥0</div>
+      </div>
+    </div>
+  `).join('');
+
+  // ルームサマリー
+  const summary = document.getElementById('roomSummaryList');
+  summary.innerHTML = state.rooms.map(room => `
+    <div class="transaction-item" onclick="selectRoom(${room.id})" style="cursor:pointer;">
+      <div class="tx-icon" style="background:${room.color}22;border:1px solid ${room.color}44">${room.icon}</div>
+      <div class="tx-info">
+        <div class="tx-name">${room.name}</div>
+        <div class="tx-category">タップして切り替え</div>
+      </div>
+      <div class="tx-amount ${room.id === state.currentRoom ? 'income' : ''}" style="font-size:12px;">
+        ${room.id === state.currentRoom ? '表示中 ✓' : ''}
+      </div>
+    </div>
+  `).join('');
+
+  // バッジ更新
+  const current = state.rooms.find(r => r.id === state.currentRoom);
+  if (current) {
+    document.getElementById('currentRoomBadge').textContent = `${current.icon} ${current.name}`;
+  }
+}
+
+function selectRoom(id) {
+  state.currentRoom = id;
+  renderAll();
+}
+
+// サマリー更新
+function updateSummary() {
+  const m = state.currentMonth;
+  const txs = state.transactions.filter(t =>
+    Number(t.roomId) === Number(state.currentRoom) && isSameMonth(t.date, m)
+  );
+  const income = txs.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
+  const expense = txs.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
+  const balance = income - expense;
+  const savings = Math.floor(income * 0.2);
+
+  document.getElementById('totalIncome').textContent = `¥${income.toLocaleString()}`;
+  document.getElementById('totalExpense').textContent = `¥${expense.toLocaleString()}`;
+  document.getElementById('totalBalance').textContent = `¥${balance.toLocaleString()}`;
+  document.getElementById('totalSavings').textContent = `¥${savings.toLocaleString()}`;
+}
+
+// 取引リスト描画
+function renderTransactions() {
+  const m = state.currentMonth;
+  const txs = state.transactions
+    .filter(t => Number(t.roomId) === Number(state.currentRoom) && isSameMonth(t.date, m))
+    .sort((a, b) => new Date(b.date) - new Date(a.date))
+    .slice(0, 5);
+
+  const list = document.getElementById('transactionList');
+  if (txs.length === 0) {
+    list.innerHTML = `<div class="empty-state"><div class="empty-icon">📭</div><p>まだ取引がありません<br>「収支を追加」から入力してください</p></div>`;
+    return;
+  }
+  list.innerHTML = txs.map(t => `
+    <div class="transaction-item">
+      <div class="tx-icon" style="background:${t.color}22;border:1px solid ${t.color}44">${t.icon}</div>
+      <div class="tx-info">
+        <div class="tx-name">${t.name}</div>
+        <div class="tx-category">${t.category} · ${t.date}</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <div class="tx-amount ${t.type}">${t.type === 'income' ? '+' : '-'}¥${t.amount.toLocaleString()}</div>
+        <button onclick="editTransaction(${t.id})" style="background:var(--bg-hover);border:1px solid var(--border);border-radius:6px;padding:4px 8px;color:var(--text-muted);cursor:pointer;font-size:11px;" title="編集">✏️</button>
+        <button onclick="deleteTransaction(${t.id})" style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.2);border-radius:6px;padding:4px 8px;color:#ef4444;cursor:pointer;font-size:11px;" title="削除">🗑</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderAll() {
+  saveAutoBackup();
+  // Firebaseにも保存（非同期・バックグラウンド）
+  if (window._firebaseReady && window._syncEnabled) {
+    window._syncEnabled = false; // スナップショットループを一時停止
+    saveToFirestore().then(() => {
+      setTimeout(() => { window._syncEnabled = true; }, 1000);
+    });
+  }
+  renderRooms();
+  updateSummary();
+  renderTransactions();
+  if (typeof currentPage !== 'undefined' && currentPage === 'calendar') renderCalendar();
+  if (typeof currentPage !== 'undefined' && currentPage === 'budget') renderBudget();
+}
+
+// ナビ
+let currentPage = 'home';
+function setNav(el, page) {
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('pageTitle').textContent = el.textContent.trim();
+  setPage(page);
+}
+
+function setPage(page) {
+  currentPage = page;
+  const pages = ['home','calendar','graph','budget','income-goal','savings','loan','subscriptions','creditcard','report','backup'];
+  pages.forEach(p => {
+    const el = document.getElementById('page-' + p);
+    if (el) el.style.display = p === page ? '' : 'none';
+  });
+  if (page === 'calendar') renderCalendar();
+  if (page === 'graph') renderGraphs();
+  if (page === 'budget') renderBudget();
+  if (page === 'income-goal') renderIncomeGoal();
+  if (page === 'creditcard') renderCreditCard();
+  if (page === 'savings') renderSavings();
+  if (page === 'loan') renderLoans();
+  if (page === 'subscriptions') renderSubs();
+  if (page === 'report') renderReport();
+  if (page === 'backup') renderBackupPage();
+}
+
+// モーダル
+function openAddRoom() { document.getElementById('addRoomModal').classList.add('show'); }
+// openAddTransaction is defined later
+function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+
+function selectIcon(el) {
+  document.querySelectorAll('.icon-option').forEach(e => e.classList.remove('selected'));
+  el.classList.add('selected');
+  state.selectedIcon = el.dataset.icon;
+}
+
+function selectColor(el) {
+  document.querySelectorAll('.color-option').forEach(e => e.classList.remove('selected'));
+  el.classList.add('selected');
+  state.selectedColor = el.dataset.color;
+}
+
+function addRoom() {
+  const name = document.getElementById('roomName').value.trim();
+  if (!name) { showToast('ルーム名を入力してください'); return; }
+  const id = Date.now();
+  state.rooms.push({ id, name, icon: state.selectedIcon, color: state.selectedColor });
+  closeModal('addRoomModal');
+  document.getElementById('roomName').value = '';
+  renderAll();
+  showToast(`「${name}」を追加しました`);
+}
+
+// バックアップ関数は下部で定義
+
+// トースト
+function showToast(msg) {
+  const toast = document.getElementById('toast');
+  document.getElementById('toastMsg').textContent = msg;
+  toast.classList.add('show');
+  setTimeout(() => toast.classList.remove('show'), 3000);
+}
+
+// === Step 2: 収支入力・電卓・カテゴリ ===
+
+// カテゴリ定義
+const categories = {
+  expense: [
+    { name: '食費', icon: '🍱', color: '#f59e0b' },
+    { name: '交通費', icon: '🚃', color: '#3b82f6' },
+    { name: '日用品', icon: '🛒', color: '#10b981' },
+    { name: '光熱費', icon: '💡', color: '#f97316' },
+    { name: '外食', icon: '🍜', color: '#ef4444' },
+    { name: '娯楽', icon: '🎮', color: '#8b5cf6' },
+    { name: '医療', icon: '💊', color: '#ec4899' },
+    { name: '衣服', icon: '👕', color: '#06b6d4' },
+    { name: 'その他', icon: '📦', color: '#94a3b8' },
+  ],
+  income: [
+    { name: '給与', icon: '💰', color: '#10b981' },
+    { name: 'アルバイト', icon: '⏱️', color: '#3b82f6' },
+    { name: '副業', icon: '💻', color: '#8b5cf6' },
+    { name: 'ボーナス', icon: '🎁', color: '#f59e0b' },
+    { name: 'その他', icon: '📥', color: '#94a3b8' },
+  ]
+};
+
+let currentType = 'expense';
+let calcValue = '0';
+let calcExpr = '';
+let calcHasOp = false;
+let selectedCategory = null;
+
+function setType(type) {
+  currentType = type;
+  const btnE = document.getElementById('btnExpense');
+  const btnI = document.getElementById('btnIncome');
+  if (type === 'expense') {
+    btnE.style.borderColor = 'var(--red)';
+    btnE.style.background = 'rgba(239,68,68,0.15)';
+    btnE.style.color = '#ef4444';
+    btnI.style.borderColor = 'var(--border)';
+    btnI.style.background = 'transparent';
+    btnI.style.color = 'var(--text-muted)';
+  } else {
+    btnI.style.borderColor = 'var(--green)';
+    btnI.style.background = 'rgba(16,185,129,0.15)';
+    btnI.style.color = '#10b981';
+    btnE.style.borderColor = 'var(--border)';
+    btnE.style.background = 'transparent';
+    btnE.style.color = 'var(--text-muted)';
+  }
+  selectedCategory = null;
+  renderCategoryPicker();
+}
+
+function renderCategoryPicker() {
+  const cats = categories[currentType];
+  const picker = document.getElementById('categoryPicker');
+  picker.innerHTML = cats.map((c, i) => `
+    <div onclick="selectCategory(${i})" id="cat_${i}"
+      style="display:flex;align-items:center;gap:6px;padding:7px 12px;border-radius:20px;
+             border:1px solid ${selectedCategory === i ? c.color : 'var(--border)'};
+             background:${selectedCategory === i ? c.color + '22' : 'var(--bg-secondary)'};
+             cursor:pointer;transition:all 0.2s;font-size:12px;color:${selectedCategory === i ? c.color : 'var(--text-secondary)'};">
+      <span>${c.icon}</span><span>${c.name}</span>
+    </div>
+  `).join('') + `
+    <div onclick="openAddCategory()" 
+      style="display:flex;align-items:center;gap:6px;padding:7px 12px;border-radius:20px;
+             border:1px dashed var(--border);background:transparent;
+             cursor:pointer;transition:all 0.2s;font-size:12px;color:var(--text-muted);">
+      <span>＋</span><span>追加</span>
+    </div>
+  `;
+}
+
+function selectCategory(i) {
+  selectedCategory = i;
+  renderCategoryPicker();
+}
+
+// 電卓ロジック
+function calcInput(val) {
+  const ops = ['+', '-', '×', '÷'];
+  if (ops.includes(val)) {
+    if (calcValue !== '0') {
+      calcExpr = calcValue + ' ' + val + ' ';
+      calcHasOp = true;
+      calcValue = '0';
+    }
+  } else if (val === '.') {
+    if (!calcValue.includes('.')) calcValue += '.';
+  } else {
+    if (calcValue === '0') calcValue = val;
+    else calcValue += val;
+  }
+  updateCalcDisplay();
+}
+
+function calcEqual() {
+  if (!calcExpr) return;
+  try {
+    const expr = calcExpr.replace('×','*').replace('÷','/') + calcValue;
+    const result = Function('"use strict"; return (' + expr + ')')();
+    calcValue = String(Math.round(result * 100) / 100);
+    calcExpr = '';
+    calcHasOp = false;
+  } catch(e) {}
+  updateCalcDisplay();
+}
+
+function calcClear() {
+  calcValue = '0';
+  calcExpr = '';
+  calcHasOp = false;
+  updateCalcDisplay();
+}
+
+function calcBackspace() {
+  if (calcValue.length > 1) calcValue = calcValue.slice(0, -1);
+  else calcValue = '0';
+  updateCalcDisplay();
+}
+
+function updateCalcDisplay() {
+  const num = parseFloat(calcValue) || 0;
+  document.getElementById('calcDisplay').textContent = 
+    num % 1 === 0 ? num.toLocaleString() : calcValue;
+  document.getElementById('calcExpression').textContent = calcExpr;
+}
+
+// openAddTransaction → 下部の統合版を使用
+
+// saveTransaction → 下部の統合版を使用
+
+
+
+// === 絵文字ピッカー ===
+const emojiSets = {
+  money: ['💰','💵','💳','🏦','💹','📈','📉','💸','🪙','💎','🏧','🧾','📊','💼','🤑'],
+  food:  ['🍱','🍜','🍣','🍔','🍕','☕','🍺','🍰','🥗','🛒','🥡','🍦','🍩','🥤','🧃'],
+  life:  ['🏠','💡','🚰','🔌','📱','💊','🩺','👕','👟','💄','🐶','🌿','🧹','🛋️','🪥'],
+  fun:   ['🎮','🎬','📚','🎵','🎨','✈️','🏖️','⚽','🎯','🎲','🎠','🎤','📷','🎸','🎭'],
+  transport: ['🚗','🚃','🚌','✈️','🚲','🛵','⛽','🅿️','🚕','🚢','🚁','🛻','🚐','🏍️','🚦'],
+  other: ['📦','📌','🗂️','⭐','🔔','🏷️','📝','🔧','🎁','🌟','❓','🔑','📎','🗓️','💡']
+};
+let currentEmojiTab = 'money';
+
+function setEmojiTab(tab) {
+  currentEmojiTab = tab;
+  document.querySelectorAll('.etab').forEach(b => {
+    const isActive = b.id === 'etab_' + tab;
+    b.style.borderColor = isActive ? 'var(--blue)' : 'var(--border)';
+    b.style.background = isActive ? 'var(--blue-glow)' : 'transparent';
+    b.style.color = isActive ? 'var(--blue-light)' : 'var(--text-muted)';
+  });
+  renderEmojiGrid();
+}
+
+function renderEmojiGrid() {
+  const grid = document.getElementById('emojiGrid');
+  if (!grid) return;
+  const cur = document.getElementById('newCatIcon').value;
+  grid.innerHTML = emojiSets[currentEmojiTab].map(e => `
+    <div onclick="pickEmoji('${e}')"
+      style="width:100%;aspect-ratio:1;display:flex;align-items:center;justify-content:center;
+             font-size:18px;border-radius:8px;cursor:pointer;transition:all 0.15s;
+             background:${cur === e ? 'var(--blue-glow)' : 'transparent'};
+             border:1px solid ${cur === e ? 'var(--blue)' : 'transparent'};"
+      onmouseover="this.style.background='var(--bg-hover)'"
+      onmouseout="this.style.background='${cur === e ? 'var(--blue-glow)' : 'transparent'}'">
+      ${e}
+    </div>
+  `).join('');
+}
+
+function pickEmoji(e) {
+  document.getElementById('newCatIcon').value = e;
+  document.getElementById('selectedEmojiPreview').textContent = e;
+  renderEmojiGrid();
+}
+
+function updateEmojiPreview(val) {
+  if (val) document.getElementById('selectedEmojiPreview').textContent = val;
+  renderEmojiGrid();
+}
+
+// 削除
+function deleteTransaction(id) {
+  if (!confirm('この取引を削除しますか？')) return;
+  state.transactions = state.transactions.filter(t => t.id !== id);
+  renderAll();
+  showToast('取引を削除しました');
+}
+
+// 編集（既存データをモーダルに展開）
+let editingId = null;
+function editTransaction(id) {
+  const t = state.transactions.find(t => t.id === id);
+  if (!t) return;
+  editingId = id;
+  calcValue = String(t.amount);
+  calcExpr = '';
+  setType(t.type);
+  document.getElementById('txDate').value = t.date;
+  document.getElementById('txName').value = t.name;
+
+  // カテゴリを選択状態に
+  const cats = categories[t.type];
+  const idx = cats.findIndex(c => c.name === t.category);
+  selectedCategory = idx >= 0 ? idx : null;
+  renderCategoryPicker();
+  updateCalcDisplay();
+
+  // タイトル変更
+  document.querySelector('#txModal .modal-title').textContent = '✏️ 取引を編集';
+  document.getElementById('addTransactionModal').classList.add('show');
+}
+
+// 保存（新規 or 編集）
+function saveTransaction() {
+  // 演算式が残っている場合は先に計算する
+  if (calcExpr) calcEqual();
+  const amount = parseFloat(calcValue);
+  if (!amount || amount <= 0) { showToast('金額を入力してください'); return; }
+  const name = document.getElementById('txName').value.trim();
+  const date = document.getElementById('txDate').value;
+  const cat = selectedCategory !== null ? categories[currentType][selectedCategory] : { name: 'その他', icon: '📦', color: '#94a3b8' };
+
+  if (editingId !== null) {
+    // 編集モード
+    const idx = state.transactions.findIndex(t => t.id === editingId);
+    if (idx >= 0) {
+      state.transactions[idx] = { ...state.transactions[idx], roomId: Number(state.currentRoom), type: currentType, amount, name, date, category: cat.name, icon: cat.icon, color: cat.color };
+    }
+    editingId = null;
+    closeModal('addTransactionModal');
+    renderAll();
+    showToast('取引を更新しました');
+  } else {
+    // 新規
+    state.transactions.push({ id: Date.now(), roomId: Number(state.currentRoom), type: currentType, amount, name, date, category: cat.name, icon: cat.icon, color: cat.color });
+    closeModal('addTransactionModal');
+    renderAll();
+    showToast(`${currentType === 'income' ? '収入' : '支出'}を追加しました（¥${amount.toLocaleString()}）`);
+  }
+}
+
+// カテゴリ追加モーダル
+function openAddCategory() {
+  document.getElementById('addCategoryModal').classList.add('show');
+  document.getElementById('newCatName').value = '';
+  document.getElementById('newCatIcon').value = '📌';
+  document.getElementById('selectedEmojiPreview').textContent = '📌';
+  setEmojiTab('money');
+  // カラー初期選択
+  document.querySelectorAll('.newcat-color').forEach((el,i) => {
+    el.classList.toggle('selected', i === 0);
+  });
+  newCatColor = '#3b82f6';
+}
+
+let newCatColor = '#3b82f6';
+function selectNewCatColor(el) {
+  document.querySelectorAll('.newcat-color').forEach(e => e.classList.remove('selected'));
+  el.classList.add('selected');
+  newCatColor = el.dataset.color;
+}
+
+function saveNewCategory() {
+  const name = document.getElementById('newCatName').value.trim();
+  const icon = document.getElementById('newCatIcon').value.trim() || '📌';
+  if (!name) { showToast('カテゴリ名を入力してください'); return; }
+  categories[currentType].push({ name, icon, color: newCatColor });
+  closeModal('addCategoryModal');
+  renderCategoryPicker();
+  // 新しく追加したものを選択
+  selectedCategory = categories[currentType].length - 1;
+  renderCategoryPicker();
+  showToast(`「${icon} ${name}」を追加しました`);
+}
+
+// openAddTransactionをリセット対応にオーバーライド
+const _origOpenAdd = openAddTransaction;
+function openAddTransaction() {
+  editingId = null;
+  calcClear();
+  selectedCategory = null;
+  setType('expense');
+  const today = new Date().toISOString().slice(0, 10);
+  document.getElementById('txDate').value = today;
+  document.getElementById('txName').value = '';
+  renderCategoryPicker();
+  document.querySelector('#txModal .modal-title').textContent = '✏️ 収支を追加';
+  document.getElementById('addTransactionModal').classList.add('show');
+}
+
+
+
+// ─── 六曜計算（朔日テーブル使用・正確版）───
+const _shuoTable = [
+  // 2025年 旧暦各月1日のグレゴリオ暦
+  {date:[2025,1,29],m:1},{date:[2025,2,28],m:2},{date:[2025,3,29],m:3},
+  {date:[2025,4,27],m:4},{date:[2025,5,27],m:5},{date:[2025,6,25],m:6},
+  {date:[2025,7,25],m:7},{date:[2025,8,23],m:8},{date:[2025,9,22],m:9},
+  {date:[2025,10,21],m:10},{date:[2025,11,20],m:11},{date:[2025,12,20],m:12},
+  // 2026年
+  {date:[2026,2,17],m:1},{date:[2026,3,19],m:2},{date:[2026,4,17],m:3},
+  {date:[2026,5,16],m:4},{date:[2026,6,15],m:5},{date:[2026,7,14],m:6},
+  {date:[2026,8,12],m:7},{date:[2026,9,11],m:8},{date:[2026,10,10],m:9},
+  {date:[2026,11,9],m:10},{date:[2026,12,8],m:11},
+  // 2027年
+  {date:[2027,1,7],m:1},{date:[2027,2,6],m:2},{date:[2027,3,8],m:3},
+  {date:[2027,4,6],m:4},{date:[2027,5,6],m:5},{date:[2027,6,4],m:6},
+];
+
+function calcRokuyo(year, month, day) {
+  const table = ['大安','赤口','先勝','友引','先負','仏滅'];
+  const target = new Date(year, month-1, day).getTime();
+  let best = null;
+  for (const s of _shuoTable) {
+    const t = new Date(s.date[0], s.date[1]-1, s.date[2]).getTime();
+    if (t <= target) best = { t, m: s.m };
+    else break;
+  }
+  if (!best) return '?';
+  const kyuDay = Math.round((target - best.t) / 86400000) + 1;
+  return table[(best.m + kyuDay) % 6];
+}
+
+const rokuyoColor = {
+  '大安': '#10b981', '赤口': '#ef4444', '先勝': '#3b82f6',
+  '友引': '#10b981', '先負': '#f59e0b', '仏滅': '#94a3b8'
+};
+
+// ─── Step 3: カレンダー ───
+let calSelectedDate = null;
+
+function renderCalendar() {
+  const m = state.currentMonth;
+  const year = m.getFullYear();
+  const month = m.getMonth();
+  const today = new Date();
+
+  const firstDay = new Date(year, month, 1).getDay();
+  const lastDate = new Date(year, month + 1, 0).getDate();
+
+  // 前月の日数
+  const prevLastDate = new Date(year, month, 0).getDate();
+
+  const grid = document.getElementById('calendarGrid');
+  if (!grid) return;
+
+  // 日別集計
+  const dayMap = {};
+  state.transactions.forEach(t => {
+    if (Number(t.roomId) !== Number(state.currentRoom)) return;
+    if (!isSameMonth(t.date, new Date(year, month, 1))) return;
+    const key = parseInt(t.date.split('-')[2]);
+    if (!dayMap[key]) dayMap[key] = { income: 0, expense: 0, items: [] };
+    dayMap[key][t.type] += t.amount;
+    dayMap[key].items.push(t);
+  });
+
+  let cells = '';
+  // 前月分
+  for (let i = firstDay - 1; i >= 0; i--) {
+    const d = prevLastDate - i;
+    cells += `<div class="cal-day other-month"><div class="cal-day-num">${d}</div></div>`;
+  }
+  // 当月
+  for (let d = 1; d <= lastDate; d++) {
+    const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const isToday = today.getFullYear()===year && today.getMonth()===month && today.getDate()===d;
+    const isSelected = calSelectedDate === dateStr;
+    const dow = new Date(year, month, d).getDay();
+    const numClass = dow===0 ? 'sunday' : dow===6 ? 'saturday' : '';
+    const dayData = dayMap[d];
+
+    let dots = '';
+    let totalStr = '';
+    if (dayData) {
+      if (dayData.income > 0) dots += `<div class="cal-dot income">+¥${dayData.income.toLocaleString()}</div>`;
+      if (dayData.expense > 0) dots += `<div class="cal-dot expense">-¥${dayData.expense.toLocaleString()}</div>`;
+    }
+
+    const rk = calcRokuyo(year, month + 1, d);
+    const rkColor = rokuyoColor[rk] || '#94a3b8';
+    cells += `<div class="cal-day${isToday?' today':''}${isSelected?' selected':''}" onclick="selectCalDay('${dateStr}')">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px;">
+        <div class="cal-day-num ${numClass}">${d}</div>
+        <div style="font-size:8px;color:${rkColor};font-weight:600;opacity:0.85;">${rk}</div>
+      </div>
+      ${dots}
+    </div>`;
+  }
+  // 次月分（6行になるよう）
+  const totalCells = firstDay + lastDate;
+  const remaining = totalCells % 7 === 0 ? 0 : 7 - (totalCells % 7);
+  for (let d = 1; d <= remaining; d++) {
+    cells += `<div class="cal-day other-month"><div class="cal-day-num">${d}</div></div>`;
+  }
+  grid.innerHTML = cells;
+}
+
+function selectCalDay(dateStr) {
+  calSelectedDate = dateStr;
+  renderCalendar();
+
+  const txs = state.transactions.filter(t =>
+    Number(t.roomId) === Number(state.currentRoom) && t.date === dateStr
+  );
+
+  const card = document.getElementById('calDayCard');
+  const list = document.getElementById('calDayList');
+  const title = document.getElementById('calDayTitle');
+
+  const [y,mo,d] = dateStr.split('-');
+  title.textContent = `📅 ${parseInt(mo)}月${parseInt(d)}日の取引`;
+
+  if (txs.length === 0) {
+    list.innerHTML = `<div style="text-align:center;color:var(--text-muted);padding:20px;font-size:13px;">この日の取引はありません</div>`;
+  } else {
+    list.innerHTML = txs.map(t => `
+      <div class="transaction-item">
+        <div class="tx-icon" style="background:${t.color}22;border:1px solid ${t.color}44">${t.icon}</div>
+        <div class="tx-info">
+          <div class="tx-name">${t.name}</div>
+          <div class="tx-category">${t.category}</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <div class="tx-amount ${t.type}">${t.type==='income'?'+':'-'}¥${t.amount.toLocaleString()}</div>
+          <button onclick="editTransaction(${t.id})" style="background:var(--bg-hover);border:1px solid var(--border);border-radius:6px;padding:4px 8px;color:var(--text-muted);cursor:pointer;font-size:11px;">✏️</button>
+          <button onclick="deleteTxCalendar(${t.id},'${dateStr}')" style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.2);border-radius:6px;padding:4px 8px;color:#ef4444;cursor:pointer;font-size:11px;">🗑</button>
+        </div>
+      </div>
+    `).join('');
+  }
+  card.style.display = '';
+}
+
+function deleteTxCalendar(id, dateStr) {
+  if (!confirm('この取引を削除しますか？')) return;
+  state.transactions = state.transactions.filter(t => t.id !== id);
+  renderAll();
+  selectCalDay(dateStr);
+  showToast('取引を削除しました');
+}
+
+// renderAll は上部で定義済み（カレンダー含む）
+
+
+// ─── Step 4: グラフ ───
+let chartInstances = {};
+let currentGraphTab = 'monthly';
+
+function setGraphTab(tab) {
+  currentGraphTab = tab;
+  ['monthly','category','weekly','compare'].forEach(t => {
+    document.getElementById('graph-' + t).style.display = t === tab ? '' : 'none';
+    const btn = document.getElementById('gtab_' + t);
+    if (btn) {
+      btn.style.borderColor = t === tab ? 'var(--blue)' : 'var(--border)';
+      btn.style.background = t === tab ? 'var(--blue-glow)' : 'transparent';
+      btn.style.color = t === tab ? 'var(--blue-light)' : 'var(--text-muted)';
+    }
+  });
+  renderGraphs();
+}
+
+function destroyChart(id) {
+  if (chartInstances[id]) { chartInstances[id].destroy(); delete chartInstances[id]; }
+}
+
+const chartDefaults = {
+  plugins: { legend: { labels: { color: '#94a3b8', font: { size: 11 } } } },
+  scales: {
+    x: { ticks: { color: '#94a3b8', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.05)' } },
+    y: { ticks: { color: '#94a3b8', font: { size: 11 }, callback: v => '¥' + v.toLocaleString() }, grid: { color: 'rgba(255,255,255,0.05)' } }
+  }
+};
+
+function getMonthlyData() {
+  const result = [];
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(state.currentMonth.getFullYear(), state.currentMonth.getMonth() - i, 1);
+    const txs = state.transactions.filter(t =>
+      Number(t.roomId) === Number(state.currentRoom) && isSameMonth(t.date, d)
+    );
+    result.push({
+      label: `${d.getMonth()+1}月`,
+      income: txs.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0),
+      expense: txs.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0),
+    });
+  }
+  return result;
+}
+
+function renderGraphs() {
+  if (currentGraphTab === 'monthly') renderMonthlyChart();
+  else if (currentGraphTab === 'category') renderCategoryCharts();
+  else if (currentGraphTab === 'weekly') renderWeeklyChart();
+  else if (currentGraphTab === 'compare') renderCompareChart();
+}
+
+function renderMonthlyChart() {
+  destroyChart('monthly');
+  const data = getMonthlyData();
+  const ctx = document.getElementById('chartMonthly');
+  if (!ctx) return;
+  chartInstances['monthly'] = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: data.map(d => d.label),
+      datasets: [
+        { label: '収入', data: data.map(d => d.income), backgroundColor: 'rgba(16,185,129,0.6)', borderColor: '#10b981', borderWidth: 1, borderRadius: 6 },
+        { label: '支出', data: data.map(d => d.expense), backgroundColor: 'rgba(239,68,68,0.6)', borderColor: '#ef4444', borderWidth: 1, borderRadius: 6 },
+      ]
+    },
+    options: { ...chartDefaults, responsive: true }
+  });
+}
+
+function renderCategoryCharts() {
+  const m = state.currentMonth;
+  const txs = state.transactions.filter(t =>
+    Number(t.roomId) === Number(state.currentRoom) && isSameMonth(t.date, m)
+  );
+
+  ['expense','income'].forEach(type => {
+    const suffix = type === 'expense' ? 'Expense' : 'Income';
+    destroyChart('cat'+suffix);
+    const map = {};
+    txs.filter(t=>t.type===type).forEach(t => {
+      map[t.category] = (map[t.category]||{amount:0,color:t.color,icon:t.icon});
+      map[t.category].amount += t.amount;
+    });
+    const entries = Object.entries(map).sort((a,b)=>b[1].amount-a[1].amount);
+    if (entries.length === 0) return;
+
+    const ctx = document.getElementById('chartCat'+suffix);
+    if (!ctx) return;
+    chartInstances['cat'+suffix] = new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        labels: entries.map(e => e[1].icon + ' ' + e[0]),
+        datasets: [{ data: entries.map(e=>e[1].amount), backgroundColor: entries.map(e=>e[1].color+'bb'), borderColor: entries.map(e=>e[1].color), borderWidth: 2 }]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: { display: false },
+          tooltip: { callbacks: { label: ctx => ` ¥${ctx.raw.toLocaleString()} (${Math.round(ctx.raw/entries.reduce((s,e)=>s+e[1].amount,0)*100)}%)` } }
+        }
+      }
+    });
+
+    // 凡例
+    const legend = document.getElementById('catLegend'+suffix);
+    if (legend) {
+      const total = entries.reduce((s,e)=>s+e[1].amount,0);
+      legend.innerHTML = entries.map(e => `
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid var(--border);">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <div style="width:10px;height:10px;border-radius:50%;background:${e[1].color};flex-shrink:0;"></div>
+            <span style="font-size:12px;">${e[1].icon} ${e[0]}</span>
+          </div>
+          <div style="text-align:right;">
+            <span style="font-size:12px;font-weight:600;color:${type==='income'?'#10b981':'#ef4444'};">¥${e[1].amount.toLocaleString()}</span>
+            <span style="font-size:10px;color:var(--text-muted);margin-left:6px;">${Math.round(e[1].amount/total*100)}%</span>
+          </div>
+        </div>
+      `).join('');
+    }
+  });
+}
+
+function renderWeeklyChart() {
+  destroyChart('weekly');
+  const m = state.currentMonth;
+  const year = m.getFullYear(), month = m.getMonth();
+  const lastDate = new Date(year, month+1, 0).getDate();
+  const weeks = ['第1週','第2週','第3週','第4週','第5週'];
+  const weekData = [0,0,0,0,0];
+
+  state.transactions.filter(t =>
+    Number(t.roomId)===Number(state.currentRoom) && t.type==='expense' && isSameMonth(t.date, m)
+  ).forEach(t => {
+    const d = parseInt(t.date.split('-')[2]);
+    const w = Math.min(Math.floor((d-1)/7), 4);
+    weekData[w] += t.amount;
+  });
+
+  const activeWeeks = Math.ceil(lastDate/7);
+  const ctx = document.getElementById('chartWeekly');
+  if (!ctx) return;
+  chartInstances['weekly'] = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: weeks.slice(0, activeWeeks),
+      datasets: [{
+        label: '支出',
+        data: weekData.slice(0, activeWeeks),
+        backgroundColor: weekData.slice(0,activeWeeks).map(v => {
+          const max = Math.max(...weekData);
+          return v === max ? 'rgba(239,68,68,0.8)' : 'rgba(59,130,246,0.5)';
+        }),
+        borderColor: weekData.slice(0,activeWeeks).map(v => v === Math.max(...weekData) ? '#ef4444' : '#3b82f6'),
+        borderWidth: 1, borderRadius: 8,
+      }]
+    },
+    options: { ...chartDefaults, responsive: true, plugins: { legend: { display: false } } }
+  });
+}
+
+function renderCompareChart() {
+  destroyChart('compare');
+  const data = getMonthlyData();
+  const ctx = document.getElementById('chartCompare');
+  if (!ctx) return;
+  chartInstances['compare'] = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: data.map(d => d.label),
+      datasets: [
+        { label: '収入', data: data.map(d=>d.income), borderColor:'#10b981', backgroundColor:'rgba(16,185,129,0.1)', tension:0.4, fill:true, pointBackgroundColor:'#10b981', pointRadius:5 },
+        { label: '支出', data: data.map(d=>d.expense), borderColor:'#ef4444', backgroundColor:'rgba(239,68,68,0.1)', tension:0.4, fill:true, pointBackgroundColor:'#ef4444', pointRadius:5 },
+        { label: '収支差', data: data.map(d=>d.income-d.expense), borderColor:'#3b82f6', backgroundColor:'transparent', tension:0.4, borderDash:[5,5], pointBackgroundColor:'#3b82f6', pointRadius:4 },
+      ]
+    },
+    options: { ...chartDefaults, responsive: true }
+  });
+
+  // サマリー更新
+  const m = state.currentMonth;
+  const cur = data[data.length-1];
+  const balance = cur.income - cur.expense;
+  const el = document.getElementById('gBalanceAmt');
+  if (el) {
+    el.textContent = (balance >= 0 ? '+' : '') + '¥' + Math.abs(balance).toLocaleString();
+    el.style.color = balance >= 0 ? '#10b981' : '#ef4444';
+  }
+
+  // 最大支出カテゴリ
+  const txs = state.transactions.filter(t =>
+    Number(t.roomId)===Number(state.currentRoom) && t.type==='expense' && isSameMonth(t.date, m)
+  );
+  const catMap = {};
+  txs.forEach(t => { catMap[t.category] = (catMap[t.category]||0) + t.amount; });
+  const topCat = Object.entries(catMap).sort((a,b)=>b[1]-a[1])[0];
+  const topEl = document.getElementById('gTopCat');
+  if (topEl) topEl.textContent = topCat ? topCat[0] + ' ¥' + topCat[1].toLocaleString() : '-';
+
+  // 貯蓄率
+  const rateEl = document.getElementById('gSavingRate');
+  if (rateEl) {
+    const rate = cur.income > 0 ? Math.round((cur.income - cur.expense) / cur.income * 100) : 0;
+    rateEl.textContent = rate + '%';
+    rateEl.style.color = rate >= 20 ? '#10b981' : rate >= 0 ? '#f59e0b' : '#ef4444';
+  }
+}
+
+
+// ─── Step 5: 予算管理 ───
+let editingBudgetId = null;
+let budgetSelectedCat = null; // {name, icon, color}
+
+function renderBudgetCatPicker() {
+  // 支出カテゴリ一覧を表示（すでに予算設定済みは薄く）
+  const picker = document.getElementById('budgetCatPicker');
+  if (!picker) return;
+  const allCats = categories['expense'];
+  const usedNames = state.budgets.filter(b => b.id !== editingBudgetId).map(b => b.name);
+  picker.innerHTML = allCats.map((c, i) => {
+    const isUsed = usedNames.includes(c.name);
+    return `<div onclick="${isUsed ? '' : `pickBudgetCat('${c.name}','${c.icon}','${c.color}')`}"
+      style="display:flex;align-items:center;gap:6px;padding:7px 12px;border-radius:20px;
+             border:1px solid ${isUsed ? 'var(--border)' : c.color+'66'};
+             background:${isUsed ? 'transparent' : c.color+'11'};
+             cursor:${isUsed ? 'default' : 'pointer'};opacity:${isUsed ? '0.4' : '1'};
+             transition:all 0.2s;font-size:12px;color:${isUsed ? 'var(--text-muted)' : c.color};">
+      <span>${c.icon}</span><span>${c.name}</span>${isUsed ? '<span style="font-size:10px;">設定済</span>' : ''}
+    </div>`;
+  }).join('');
+}
+
+function pickBudgetCat(name, icon, color) {
+  budgetSelectedCat = { name, icon, color };
+  // ピッカーを隠して選択表示に切り替え
+  document.getElementById('budgetStep1').style.display = 'none';
+  const sel = document.getElementById('budgetSelectedCat');
+  sel.style.display = 'flex';
+  document.getElementById('budgetSelIcon').textContent = icon;
+  document.getElementById('budgetSelName').textContent = name;
+  // 名前・アイコン欄も同期
+  document.getElementById('budgetCatName').value = name;
+  document.getElementById('budgetCatIcon').value = icon;
+}
+
+function resetBudgetCat() {
+  budgetSelectedCat = null;
+  document.getElementById('budgetStep1').style.display = '';
+  document.getElementById('budgetSelectedCat').style.display = 'none';
+  document.getElementById('budgetCatName').value = '';
+  document.getElementById('budgetCatIcon').value = '';
+}
+
+function openBudgetModal(id = null) {
+  editingBudgetId = id;
+  budgetSelectedCat = null;
+  document.getElementById('budgetStep1').style.display = '';
+  document.getElementById('budgetSelectedCat').style.display = 'none';
+  document.getElementById('budgetAmount').value = '';
+  document.getElementById('budgetCatName').value = '';
+  document.getElementById('budgetCatIcon').value = '';
+  renderBudgetCatPicker();
+
+  if (id !== null) {
+    const b = state.budgets.find(b => b.id === id);
+    if (!b) return;
+    budgetSelectedCat = { name: b.name, icon: b.icon, color: b.color };
+    pickBudgetCat(b.name, b.icon, b.color);
+    document.getElementById('budgetAmount').value = b.amount;
+    document.getElementById('budgetModalTitle').textContent = '✏️ 予算を編集';
+    document.getElementById('budgetSaveBtn').textContent = '更新する';
+  } else {
+    document.getElementById('budgetModalTitle').textContent = '🎯 予算を設定';
+    document.getElementById('budgetSaveBtn').textContent = '保存する';
+  }
+  document.getElementById('budgetModal').classList.add('show');
+}
+
+function saveBudget() {
+  // 手入力 or ピッカー選択のどちらかから取得
+  const name = document.getElementById('budgetCatName').value.trim();
+  const icon = document.getElementById('budgetCatIcon').value.trim() || '📦';
+  const color = budgetSelectedCat?.color || '#3b82f6';
+  const amount = parseInt(document.getElementById('budgetAmount').value);
+  if (!name) { showToast('カテゴリを選択または入力してください'); return; }
+  if (!amount || amount <= 0) { showToast('予算金額を入力してください'); return; }
+
+  if (editingBudgetId !== null) {
+    const idx = state.budgets.findIndex(b => b.id === editingBudgetId);
+    if (idx >= 0) state.budgets[idx] = { ...state.budgets[idx], name, icon, color, amount };
+    showToast('予算を更新しました');
+  } else {
+    state.budgets.push({ id: Date.now(), name, icon, color, amount });
+    showToast(`「${icon} ${name}」の予算を設定しました`);
+  }
+  closeModal('budgetModal');
+  renderBudget();
+}
+
+function deleteBudget(id) {
+  if (!confirm('この予算を削除しますか？')) return;
+  state.budgets = state.budgets.filter(b => b.id !== id);
+  renderBudget();
+  showToast('予算を削除しました');
+}
+
+function renderBudget() {
+  const m = state.currentMonth;
+  const txs = state.transactions.filter(t =>
+    Number(t.roomId) === Number(state.currentRoom) && t.type === 'expense' && isSameMonth(t.date, m)
+  );
+  const setEl = (id, val, color) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.textContent = val;
+    if (color) el.style.color = color;
+  };
+
+  // ── 合計集計 ──
+  const totalBudget = state.budgets.reduce((s, b) => s + b.amount, 0);
+  const totalUsed = txs.reduce((s, t) => s + t.amount, 0);
+  const totalRemain = totalBudget - totalUsed;
+  const pct = totalBudget > 0 ? Math.min(Math.round(totalUsed / totalBudget * 100), 100) : 0;
+
+  setEl('budgetTotal', '¥' + totalBudget.toLocaleString());
+  setEl('budgetUsed', '¥' + totalUsed.toLocaleString());
+  setEl('budgetRemain',
+    (totalRemain >= 0 ? '¥' : '-¥') + Math.abs(totalRemain).toLocaleString(),
+    totalRemain >= 0 ? '#10b981' : '#ef4444'
+  );
+  setEl('budgetPct', pct + '%',
+    pct >= 90 ? '#ef4444' : pct >= 70 ? '#f59e0b' : 'var(--blue-light)'
+  );
+
+  const bar = document.getElementById('budgetBar');
+  if (bar) {
+    bar.style.width = pct + '%';
+    bar.style.background = pct >= 90 ? 'linear-gradient(90deg,#ef4444,#f97316)'
+      : pct >= 70 ? 'linear-gradient(90deg,#f59e0b,#ef4444)'
+      : 'linear-gradient(90deg,#3b82f6,#10b981)';
+  }
+
+  // 残り日数
+  const today = new Date();
+  const lastDay = new Date(m.getFullYear(), m.getMonth()+1, 0).getDate();
+  const daysLeft = m.getMonth() === today.getMonth() && m.getFullYear() === today.getFullYear()
+    ? lastDay - today.getDate() : 0;
+  setEl('budgetDaysLeft', daysLeft > 0 ? `残り${daysLeft}日` : '');
+
+  // ── カテゴリカード ──
+  const cards = document.getElementById('budgetCards');
+  if (!cards) return;
+
+  if (state.budgets.length === 0) {
+    cards.innerHTML = `<div class="card" style="grid-column:1/-1;text-align:center;padding:40px;">
+      <div style="font-size:36px;margin-bottom:12px;">🎯</div>
+      <div style="color:var(--text-muted);font-size:13px;">予算が設定されていません<br>「＋ 予算を設定」から追加してください</div>
+    </div>`;
+    return;
+  }
+
+  // 1日あたり使える金額
+  const dailyBudget = daysLeft > 0 && totalBudget > 0
+    ? Math.floor((totalBudget - totalUsed) / daysLeft) : null;
+
+  cards.innerHTML = state.budgets.map(b => {
+    const used = txs.filter(t => t.category === b.name).reduce((s,t) => s+t.amount, 0);
+    const remain = b.amount - used;
+    const p = Math.min(Math.round(used / b.amount * 100), 100);
+    const over = remain < 0;
+    const barColor = p >= 90 ? '#ef4444' : p >= 70 ? '#f59e0b' : b.color;
+    // 残り日数で1日あたり残り予算
+    const dailyRemain = daysLeft > 0 && remain > 0 ? Math.floor(remain / daysLeft) : null;
+
+    return `
+    <div class="card" style="padding:16px;border-color:${over ? 'rgba(239,68,68,0.4)' : b.color+'33'};">
+      <!-- ヘッダー -->
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div style="width:34px;height:34px;border-radius:10px;background:${b.color}22;display:flex;align-items:center;justify-content:center;font-size:18px;">${b.icon}</div>
+          <span style="font-size:13px;font-weight:600;">${b.name}</span>
+        </div>
+        <div style="display:flex;gap:4px;">
+          <button onclick="openBudgetModal(${b.id})" style="background:var(--bg-hover);border:1px solid var(--border);border-radius:6px;padding:3px 7px;color:var(--text-muted);cursor:pointer;font-size:10px;">✏️</button>
+          <button onclick="deleteBudget(${b.id})" style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.2);border-radius:6px;padding:3px 7px;color:#ef4444;cursor:pointer;font-size:10px;">🗑</button>
+        </div>
+      </div>
+      <!-- 残り使える金額（大きく表示） -->
+      <div style="text-align:center;margin-bottom:12px;padding:10px;background:${over?'rgba(239,68,68,0.08)':'rgba(255,255,255,0.03)'};border-radius:10px;">
+        <div style="font-size:10px;color:var(--text-muted);margin-bottom:2px;">${over ? '⚠️ 予算オーバー' : '残り使える金額'}</div>
+        <div style="font-size:26px;font-weight:700;font-family:'Space Mono',monospace;color:${over?'#ef4444':'#10b981'};">
+          ${over ? '-' : ''}¥${Math.abs(remain).toLocaleString()}
+        </div>
+        ${dailyRemain ? `<div style="font-size:10px;color:var(--text-muted);margin-top:2px;">1日あたり ¥${dailyRemain.toLocaleString()}</div>` : ''}
+      </div>
+      <!-- プログレスバー -->
+      <div style="background:var(--bg-secondary);border-radius:999px;height:8px;overflow:hidden;margin-bottom:6px;">
+        <div style="height:100%;border-radius:999px;background:${barColor};width:${p}%;transition:width 0.6s;"></div>
+      </div>
+      <!-- 金額内訳 -->
+      <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text-muted);">
+        <span>使用 ¥${used.toLocaleString()} <span style="color:${barColor};">(${p}%)</span></span>
+        <span>予算 ¥${b.amount.toLocaleString()}</span>
+      </div>
+    </div>`;
+  }).join('');
+
+  // ── 予算未設定の支出 ──
+  const budgetNames = state.budgets.map(b => b.name);
+  const uncatTxs = txs.filter(t => !budgetNames.includes(t.category));
+  const uncatCard = document.getElementById('budgetUncategorized');
+  const uncatList = document.getElementById('budgetUncatList');
+  if (uncatCard && uncatList) {
+    if (uncatTxs.length > 0) {
+      uncatCard.style.display = '';
+      const uncatMap = {};
+      uncatTxs.forEach(t => { uncatMap[t.category] = (uncatMap[t.category]||0) + t.amount; });
+      uncatList.innerHTML = Object.entries(uncatMap).map(([cat, amt]) =>
+        `<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px;">
+          <span>${cat}</span>
+          <span style="color:#ef4444;font-weight:600;">¥${amt.toLocaleString()}</span>
+        </div>`
+      ).join('');
+    } else {
+      uncatCard.style.display = 'none';
+    }
+  }
+}
+
+
+// ─── Step 6: 貯蓄・ローン・サブスク ───
+
+// ── 貯蓄目標 ──
+let editingSavId = null;
+function openSavingsModal(id = null) {
+  editingSavId = id;
+  ['savName','savIcon'].forEach(i => document.getElementById(i).value = '');
+  ['savTarget','savCurrent','savMonthly'].forEach(i => document.getElementById(i).value = '');
+  if (id !== null) {
+    const s = state.savings.find(s => s.id === id);
+    if (s) {
+      document.getElementById('savName').value = s.name;
+      document.getElementById('savTarget').value = s.target;
+      document.getElementById('savCurrent').value = s.current;
+      document.getElementById('savMonthly').value = s.monthly;
+      document.getElementById('savIcon').value = s.icon;
+    }
+    document.getElementById('savingsModalTitle').textContent = '✏️ 貯蓄目標を編集';
+    document.getElementById('savSaveBtn').textContent = '更新する';
+  } else {
+    document.getElementById('savingsModalTitle').textContent = '💎 貯蓄目標を追加';
+    document.getElementById('savSaveBtn').textContent = '保存する';
+  }
+  document.getElementById('savingsModal').classList.add('show');
+}
+function saveSavings() {
+  const name = document.getElementById('savName').value.trim();
+  const target = parseInt(document.getElementById('savTarget').value) || 0;
+  const current = parseInt(document.getElementById('savCurrent').value) || 0;
+  const monthly = parseInt(document.getElementById('savMonthly').value) || 0;
+  const icon = document.getElementById('savIcon').value.trim() || '💎';
+  if (!name || !target) { showToast('目標名と目標金額を入力してください'); return; }
+  if (editingSavId !== null) {
+    const idx = state.savings.findIndex(s => s.id === editingSavId);
+    if (idx >= 0) state.savings[idx] = { ...state.savings[idx], name, target, current, monthly, icon };
+    showToast('貯蓄目標を更新しました');
+  } else {
+    state.savings.push({ id: Date.now(), name, target, current, monthly, icon });
+    showToast(`「${icon} ${name}」を追加しました`);
+  }
+  closeModal('savingsModal');
+  renderSavings();
+}
+function deleteSavings(id) {
+  if (!confirm('この貯蓄目標を削除しますか？')) return;
+  state.savings = state.savings.filter(s => s.id !== id);
+  renderSavings(); showToast('削除しました');
+}
+function renderSavings() {
+  const list = document.getElementById('savingsList');
+  if (!list) return;
+  if (state.savings.length === 0) {
+    list.innerHTML = '<div class="empty-state"><div class="empty-icon">💎</div><p>貯蓄目標を設定しましょう</p></div>';
+    return;
+  }
+  list.innerHTML = state.savings.map(s => {
+    const pct = Math.min(Math.round(s.current / s.target * 100), 100);
+    const remain = s.target - s.current;
+    const months = s.monthly > 0 ? Math.ceil(remain / s.monthly) : null;
+    const goalDate = months ? (() => {
+      const d = new Date(); d.setMonth(d.getMonth() + months);
+      return `${d.getFullYear()}年${d.getMonth()+1}月頃達成見込み`;
+    })() : '';
+    return `
+    <div style="padding:16px 0;border-bottom:1px solid var(--border);">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div style="width:40px;height:40px;border-radius:12px;background:rgba(59,130,246,0.15);border:1px solid rgba(59,130,246,0.3);display:flex;align-items:center;justify-content:center;font-size:20px;">${s.icon}</div>
+          <div>
+            <div style="font-size:14px;font-weight:600;">${s.name}</div>
+            <div style="font-size:11px;color:var(--text-muted);">目標 ¥${s.target.toLocaleString()}</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:6px;">
+          <button onclick="openSavingsModal(${s.id})" style="background:var(--bg-hover);border:1px solid var(--border);border-radius:6px;padding:4px 8px;color:var(--text-muted);cursor:pointer;font-size:11px;">✏️</button>
+          <button onclick="deleteSavings(${s.id})" style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.2);border-radius:6px;padding:4px 8px;color:#ef4444;cursor:pointer;font-size:11px;">🗑</button>
+        </div>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:6px;">
+        <span style="color:var(--text-muted);">達成率 <strong style="color:var(--blue-light);">${pct}%</strong></span>
+        <span style="color:#10b981;font-weight:600;">¥${s.current.toLocaleString()} / ¥${s.target.toLocaleString()}</span>
+      </div>
+      <div style="background:var(--bg-secondary);border-radius:999px;height:10px;overflow:hidden;margin-bottom:6px;">
+        <div style="height:100%;border-radius:999px;background:linear-gradient(90deg,#3b82f6,#8b5cf6);width:${pct}%;transition:width 0.5s;"></div>
+      </div>
+      ${goalDate ? `<div style="font-size:11px;color:var(--text-muted);">📅 ${goalDate}（月${s.monthly.toLocaleString()}円積立）</div>` : ''}
+    </div>`;
+  }).join('');
+}
+
+// ── ローン ──
+let editingLoanId = null;
+function openLoanModal(id = null) {
+  editingLoanId = id;
+  ['loanName','loanIcon'].forEach(i => document.getElementById(i).value = '');
+  ['loanTotal','loanMonthly','loanRemain'].forEach(i => document.getElementById(i).value = '');
+  if (id !== null) {
+    const l = state.loans.find(l => l.id === id);
+    if (l) {
+      document.getElementById('loanName').value = l.name;
+      document.getElementById('loanTotal').value = l.total;
+      document.getElementById('loanMonthly').value = l.monthly;
+      document.getElementById('loanRemain').value = l.remain;
+      document.getElementById('loanIcon').value = l.icon;
+    }
+    document.getElementById('loanModalTitle').textContent = '✏️ ローンを編集';
+    document.getElementById('loanSaveBtn').textContent = '更新する';
+  } else {
+    document.getElementById('loanModalTitle').textContent = '🏦 ローンを追加';
+    document.getElementById('loanSaveBtn').textContent = '保存する';
+  }
+  document.getElementById('loanModal').classList.add('show');
+}
+function saveLoan() {
+  const name = document.getElementById('loanName').value.trim();
+  const total = parseInt(document.getElementById('loanTotal').value) || 0;
+  const monthly = parseInt(document.getElementById('loanMonthly').value) || 0;
+  const remain = parseInt(document.getElementById('loanRemain').value) || 0;
+  const icon = document.getElementById('loanIcon').value.trim() || '🏦';
+  if (!name || !total) { showToast('ローン名と借入総額を入力してください'); return; }
+  if (editingLoanId !== null) {
+    const idx = state.loans.findIndex(l => l.id === editingLoanId);
+    if (idx >= 0) state.loans[idx] = { ...state.loans[idx], name, total, monthly, remain, icon };
+    showToast('ローンを更新しました');
+  } else {
+    state.loans.push({ id: Date.now(), name, total, monthly, remain, icon });
+    showToast(`「${icon} ${name}」を追加しました`);
+  }
+  closeModal('loanModal');
+  renderLoans();
+}
+function deleteLoan(id) {
+  if (!confirm('このローンを削除しますか？')) return;
+  state.loans = state.loans.filter(l => l.id !== id);
+  renderLoans(); showToast('削除しました');
+}
+function renderLoans() {
+  const list = document.getElementById('loanList');
+  if (!list) return;
+  if (state.loans.length === 0) {
+    list.innerHTML = '<div class="empty-state"><div class="empty-icon">🏦</div><p>ローンを登録しましょう</p></div>';
+    return;
+  }
+  list.innerHTML = state.loans.map(l => {
+    const remainAmt = l.monthly * l.remain;
+    const paidAmt = l.total - remainAmt;
+    const pct = Math.max(0, Math.min(Math.round(paidAmt / l.total * 100), 100));
+    const finishDate = (() => {
+      const d = new Date(); d.setMonth(d.getMonth() + l.remain);
+      return `${d.getFullYear()}年${d.getMonth()+1}月完済予定`;
+    })();
+    return `
+    <div style="padding:16px 0;border-bottom:1px solid var(--border);">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div style="width:40px;height:40px;border-radius:12px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);display:flex;align-items:center;justify-content:center;font-size:20px;">${l.icon}</div>
+          <div>
+            <div style="font-size:14px;font-weight:600;">${l.name}</div>
+            <div style="font-size:11px;color:var(--text-muted);">借入 ¥${l.total.toLocaleString()} · 月返済 ¥${l.monthly.toLocaleString()}</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:6px;">
+          <button onclick="openLoanModal(${l.id})" style="background:var(--bg-hover);border:1px solid var(--border);border-radius:6px;padding:4px 8px;color:var(--text-muted);cursor:pointer;font-size:11px;">✏️</button>
+          <button onclick="deleteLoan(${l.id})" style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.2);border-radius:6px;padding:4px 8px;color:#ef4444;cursor:pointer;font-size:11px;">🗑</button>
+        </div>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:6px;">
+        <span style="color:var(--text-muted);">返済済み <strong style="color:#10b981;">${pct}%</strong></span>
+        <span style="color:#ef4444;font-weight:600;">残り ¥${remainAmt.toLocaleString()}（${l.remain}回）</span>
+      </div>
+      <div style="background:var(--bg-secondary);border-radius:999px;height:10px;overflow:hidden;margin-bottom:6px;">
+        <div style="height:100%;border-radius:999px;background:linear-gradient(90deg,#10b981,#3b82f6);width:${pct}%;transition:width 0.5s;"></div>
+      </div>
+      <div style="font-size:11px;color:var(--text-muted);">📅 ${finishDate}</div>
+    </div>`;
+  }).join('');
+}
+
+// ── サブスク ──
+const subCatIcons = {'動画':'🎬','音楽':'🎵','ゲーム':'🎮','仕事':'💼','クラウド':'☁️','フィットネス':'💪','その他':'📦'};
+let editingSubId = null;
+function openSubModal(id = null) {
+  editingSubId = id;
+  ['subName','subIcon'].forEach(i => document.getElementById(i).value = '');
+  ['subAmount','subBillingDay'].forEach(i => document.getElementById(i).value = '');
+  if (id !== null) {
+    const s = state.subscriptions.find(s => s.id === id);
+    if (s) {
+      document.getElementById('subName').value = s.name;
+      document.getElementById('subAmount').value = s.amount;
+      document.getElementById('subBillingDay').value = s.billingDay;
+      document.getElementById('subCategory').value = s.category;
+      document.getElementById('subIcon').value = s.icon;
+    }
+    document.getElementById('subModalTitle').textContent = '✏️ サブスクを編集';
+    document.getElementById('subSaveBtn').textContent = '更新する';
+  } else {
+    document.getElementById('subModalTitle').textContent = '🔄 サブスクを追加';
+    document.getElementById('subSaveBtn').textContent = '保存する';
+  }
+  document.getElementById('subModal').classList.add('show');
+}
+function saveSub() {
+  const name = document.getElementById('subName').value.trim();
+  const amount = parseInt(document.getElementById('subAmount').value) || 0;
+  const billingDay = parseInt(document.getElementById('subBillingDay').value) || 1;
+  const category = document.getElementById('subCategory').value;
+  const icon = document.getElementById('subIcon').value.trim() || subCatIcons[category] || '📦';
+  if (!name || !amount) { showToast('サービス名と月額を入力してください'); return; }
+  if (editingSubId !== null) {
+    const idx = state.subscriptions.findIndex(s => s.id === editingSubId);
+    if (idx >= 0) state.subscriptions[idx] = { ...state.subscriptions[idx], name, amount, billingDay, category, icon };
+    showToast('サブスクを更新しました');
+  } else {
+    state.subscriptions.push({ id: Date.now(), name, amount, billingDay, category, icon });
+    showToast(`「${icon} ${name}」を追加しました`);
+  }
+  closeModal('subModal');
+  renderSubs();
+}
+function deleteSub(id) {
+  if (!confirm('このサブスクを削除しますか？')) return;
+  state.subscriptions = state.subscriptions.filter(s => s.id !== id);
+  renderSubs(); showToast('削除しました');
+}
+function renderSubs() {
+  const monthly = state.subscriptions.reduce((s, sub) => s + sub.amount, 0);
+  const el1 = document.getElementById('subMonthly');
+  const el2 = document.getElementById('subYearly');
+  if (el1) el1.textContent = '¥' + monthly.toLocaleString();
+  if (el2) el2.textContent = '¥' + (monthly * 12).toLocaleString();
+
+  const list = document.getElementById('subList');
+  if (!list) return;
+  if (state.subscriptions.length === 0) {
+    list.innerHTML = '<div class="empty-state"><div class="empty-icon">🔄</div><p>サブスクを登録しましょう</p></div>';
+    return;
+  }
+  // 課金日順にソート
+  const sorted = [...state.subscriptions].sort((a,b) => a.billingDay - b.billingDay);
+  const today = new Date().getDate();
+  list.innerHTML = sorted.map(s => {
+    const daysUntil = s.billingDay >= today ? s.billingDay - today : 31 - today + s.billingDay;
+    const soon = daysUntil <= 3;
+    return `
+    <div style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--border);">
+      <div style="width:40px;height:40px;border-radius:12px;background:rgba(139,92,246,0.15);border:1px solid rgba(139,92,246,0.3);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;">${s.icon}</div>
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:14px;font-weight:600;">${s.name}</div>
+        <div style="font-size:11px;color:var(--text-muted);">${s.category} · 毎月${s.billingDay}日
+          ${soon ? `<span style="color:#f59e0b;font-weight:600;"> ⚡ あと${daysUntil}日</span>` : ''}
+        </div>
+      </div>
+      <div style="text-align:right;flex-shrink:0;">
+        <div style="font-size:15px;font-weight:700;color:#ef4444;">¥${s.amount.toLocaleString()}<span style="font-size:10px;color:var(--text-muted);">/月</span></div>
+      </div>
+      <div style="display:flex;gap:4px;flex-shrink:0;">
+        <button onclick="openSubModal(${s.id})" style="background:var(--bg-hover);border:1px solid var(--border);border-radius:6px;padding:4px 8px;color:var(--text-muted);cursor:pointer;font-size:11px;">✏️</button>
+        <button onclick="deleteSub(${s.id})" style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.2);border-radius:6px;padding:4px 8px;color:#ef4444;cursor:pointer;font-size:11px;">🗑</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+
+// ─── 収入目標管理 ───
+// ─── 収入目標管理（複数バイト対応版）───
+let editingJobId = null;
+let jobColor = '#3b82f6';
+
+function selectJobColor(el) {
+  document.querySelectorAll('.job-color').forEach(e => e.style.border = '2px solid transparent');
+  el.style.border = '2px solid white';
+  jobColor = el.dataset.color;
+}
+
+function openJobModal(id = null) {
+  editingJobId = id;
+  jobColor = '#3b82f6';
+  document.querySelectorAll('.job-color').forEach((e,i) => e.style.border = i===0 ? '2px solid white' : '2px solid transparent');
+  document.getElementById('jobName').value = '';
+  document.getElementById('jobWage').value = '';
+  document.getElementById('jobTarget').value = '';
+  document.getElementById('jobIcon').value = '';
+  if (id !== null) {
+    const j = state.jobs.find(j => j.id === id);
+    if (j) {
+      document.getElementById('jobName').value = j.name;
+      document.getElementById('jobWage').value = j.wage;
+      document.getElementById('jobTarget').value = j.target;
+      document.getElementById('jobIcon').value = j.icon;
+      jobColor = j.color;
+      const colorEl = document.querySelector(`.job-color[data-color="${j.color}"]`);
+      if (colorEl) {
+        document.querySelectorAll('.job-color').forEach(e => e.style.border = '2px solid transparent');
+        colorEl.style.border = '2px solid white';
+      }
+    }
+    document.getElementById('jobModalTitle').textContent = '✏️ バイト先を編集';
+    document.getElementById('jobSaveBtn').textContent = '更新する';
+  } else {
+    document.getElementById('jobModalTitle').textContent = '💼 バイト先を追加';
+    document.getElementById('jobSaveBtn').textContent = '保存する';
+  }
+  document.getElementById('jobModal').classList.add('show');
+}
+
+function saveJob() {
+  const name = document.getElementById('jobName').value.trim();
+  const wage = parseInt(document.getElementById('jobWage').value) || 0;
+  const target = parseInt(document.getElementById('jobTarget').value) || 0;
+  const icon = document.getElementById('jobIcon').value.trim() || '💼';
+  if (!name) { showToast('バイト先の名前を入力してください'); return; }
+  if (editingJobId !== null) {
+    const idx = state.jobs.findIndex(j => j.id === editingJobId);
+    if (idx >= 0) state.jobs[idx] = { ...state.jobs[idx], name, wage, target, icon, color: jobColor };
+    showToast('バイト先を更新しました');
+  } else {
+    state.jobs.push({ id: Date.now(), name, wage, target, icon, color: jobColor });
+    showToast(`「${icon} ${name}」を追加しました`);
+  }
+  closeModal('jobModal');
+  renderIncomeGoal();
+}
+
+function deleteJob(id) {
+  if (!confirm('このバイト先を削除しますか？（記録も全て削除されます）')) return;
+  state.jobs = state.jobs.filter(j => j.id !== id);
+  state.workLogs = state.workLogs.filter(w => w.jobId !== id);
+  renderIncomeGoal(); showToast('削除しました');
+}
+
+// 勤務記録
+let editingWlId = null;
+function openWorkLogModal(id = null) {
+  editingWlId = id;
+  // バイト先プルダウンを更新
+  const sel = document.getElementById('wlJobId');
+  sel.innerHTML = state.jobs.length === 0
+    ? '<option value="">バイト先を先に追加してください</option>'
+    : state.jobs.map(j => `<option value="${j.id}">${j.icon} ${j.name}</option>`).join('');
+
+  const today = new Date().toISOString().slice(0,10);
+  document.getElementById('wlDate').value = today;
+  document.getElementById('wlHours').value = '';
+  document.getElementById('wlMemo').value = '';
+  document.getElementById('wlCalcResult').textContent = '¥0';
+
+  if (id !== null) {
+    const w = state.workLogs.find(w => w.id === id);
+    if (w) {
+      sel.value = w.jobId;
+      document.getElementById('wlDate').value = w.date;
+      document.getElementById('wlHours').value = w.hours;
+      document.getElementById('wlWage').value = w.wage;
+      document.getElementById('wlMemo').value = w.memo || '';
+      calcWorkPay();
+    }
+    document.getElementById('workLogModalTitle').textContent = '✏️ 記録を編集';
+    document.getElementById('wlSaveBtn').textContent = '更新する';
+  } else {
+    // 最初のバイト先の時給を自動セット
+    onJobSelect();
+    document.getElementById('workLogModalTitle').textContent = '⏱️ 勤務記録を追加';
+    document.getElementById('wlSaveBtn').textContent = '保存する';
+  }
+  document.getElementById('workLogModal').classList.add('show');
+}
+
+function onJobSelect() {
+  const jobId = parseInt(document.getElementById('wlJobId').value);
+  const job = state.jobs.find(j => j.id === jobId);
+  if (job) document.getElementById('wlWage').value = job.wage;
+  calcWorkPay();
+}
+
+function calcWorkPay() {
+  const hours = parseFloat(document.getElementById('wlHours').value) || 0;
+  const wage = parseInt(document.getElementById('wlWage').value) || 0;
+  document.getElementById('wlCalcResult').textContent = '¥' + Math.round(hours * wage).toLocaleString();
+}
+
+function saveWorkLog() {
+  const jobId = parseInt(document.getElementById('wlJobId').value);
+  const date = document.getElementById('wlDate').value;
+  const hours = parseFloat(document.getElementById('wlHours').value) || 0;
+  const wage = parseInt(document.getElementById('wlWage').value) || 0;
+  const memo = document.getElementById('wlMemo').value.trim();
+  if (!jobId || !date || !hours || !wage) { showToast('全ての項目を入力してください'); return; }
+  const pay = Math.round(hours * wage);
+  if (editingWlId !== null) {
+    const idx = state.workLogs.findIndex(w => w.id === editingWlId);
+    if (idx >= 0) state.workLogs[idx] = { ...state.workLogs[idx], jobId, date, hours, wage, pay, memo };
+    showToast('記録を更新しました');
+  } else {
+    state.workLogs.push({ id: Date.now(), jobId, date, hours, wage, pay, memo });
+    showToast(`¥${pay.toLocaleString()} を記録しました`);
+  }
+  closeModal('workLogModal');
+  renderIncomeGoal();
+}
+
+function deleteWorkLog(id) {
+  if (!confirm('この記録を削除しますか？')) return;
+  state.workLogs = state.workLogs.filter(w => w.id !== id);
+  renderIncomeGoal(); showToast('削除しました');
+}
+
+function renderIncomeGoal() {
+  const m = state.currentMonth;
+  const setEl = (id, val, color) => {
+    const el = document.getElementById(id);
+    if (!el) return; el.textContent = val;
+    if (color) el.style.color = color;
+  };
+
+  const logsThisMonth = state.workLogs.filter(w => isSameMonth(w.date, m));
+
+  // ── 合計 ──
+  const totalTarget = state.jobs.reduce((s, j) => s + j.target, 0);
+  const totalEarned = logsThisMonth.reduce((s, w) => s + w.pay, 0);
+  const totalRemain = Math.max(0, totalTarget - totalEarned);
+  const totalRate = totalTarget > 0 ? Math.min(Math.round(totalEarned / totalTarget * 100), 100) : 0;
+
+  setEl('igTotalTarget', '¥' + totalTarget.toLocaleString());
+  setEl('igTotalEarned', '¥' + totalEarned.toLocaleString(), totalEarned >= totalTarget ? '#10b981' : '#f59e0b');
+  setEl('igTotalRemain', totalRemain > 0 ? '¥' + totalRemain.toLocaleString() : '達成！🎉', totalRemain <= 0 ? '#10b981' : '#ef4444');
+  setEl('igTotalRate', totalRate + '%', totalRate >= 100 ? '#10b981' : totalRate >= 70 ? '#f59e0b' : 'var(--blue-light)');
+
+  const totalBar = document.getElementById('igTotalBar');
+  if (totalBar) totalBar.style.width = totalRate + '%';
+
+  // 残り合計時間（全バイト先の平均時給で計算）
+  const avgWage = state.jobs.length > 0
+    ? Math.round(state.jobs.reduce((s,j) => s+j.wage, 0) / state.jobs.length) : 0;
+  const hoursEl = document.getElementById('igTotalHours');
+  if (hoursEl && totalRemain > 0 && avgWage > 0) {
+    hoursEl.textContent = `あと約 ${Math.ceil(totalRemain / avgWage)} 時間`;
+  } else if (hoursEl) {
+    hoursEl.textContent = totalRate >= 100 ? '🎉 全目標達成！' : '';
+  }
+
+  // ── バイト先カード ──
+  const cards = document.getElementById('jobCards');
+  if (cards) {
+    if (state.jobs.length === 0) {
+      cards.innerHTML = `<div class="card" style="grid-column:1/-1;text-align:center;padding:40px;">
+        <div style="font-size:36px;margin-bottom:12px;">💼</div>
+        <div style="color:var(--text-muted);font-size:13px;">バイト先を追加してください</div>
+      </div>`;
+    } else {
+      cards.innerHTML = state.jobs.map(j => {
+        const earned = logsThisMonth.filter(w => w.jobId === j.id).reduce((s,w) => s+w.pay, 0);
+        const remain = Math.max(0, j.target - earned);
+        const rate = j.target > 0 ? Math.min(Math.round(earned / j.target * 100), 100) : 0;
+        const hoursNeeded = remain > 0 && j.wage > 0 ? Math.ceil(remain / j.wage) : 0;
+        const totalHours = logsThisMonth.filter(w => w.jobId === j.id).reduce((s,w) => s+w.hours, 0);
+
+        return `<div class="card" style="padding:16px;border-color:${j.color}44;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div style="width:36px;height:36px;border-radius:10px;background:${j.color}22;display:flex;align-items:center;justify-content:center;font-size:18px;">${j.icon}</div>
+              <div>
+                <div style="font-size:13px;font-weight:600;">${j.name}</div>
+                <div style="font-size:10px;color:var(--text-muted);">時給 ¥${j.wage.toLocaleString()}</div>
+              </div>
+            </div>
+            <div style="display:flex;gap:4px;">
+              <button onclick="openJobModal(${j.id})" style="background:var(--bg-hover);border:1px solid var(--border);border-radius:6px;padding:3px 7px;color:var(--text-muted);cursor:pointer;font-size:10px;">✏️</button>
+              <button onclick="deleteJob(${j.id})" style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.2);border-radius:6px;padding:3px 7px;color:#ef4444;cursor:pointer;font-size:10px;">🗑</button>
+            </div>
+          </div>
+          <!-- 今月の稼ぎ（大） -->
+          <div style="text-align:center;padding:10px;background:rgba(255,255,255,0.03);border-radius:10px;margin-bottom:10px;">
+            <div style="font-size:10px;color:var(--text-muted);margin-bottom:2px;">今月の稼ぎ</div>
+            <div style="font-size:24px;font-weight:700;font-family:'Space Mono',monospace;color:${earned >= j.target && j.target > 0 ? '#10b981' : j.color};">¥${earned.toLocaleString()}</div>
+            <div style="font-size:10px;color:var(--text-muted);">目標 ¥${j.target.toLocaleString()} · ${totalHours}h勤務</div>
+          </div>
+          <!-- バー -->
+          <div style="background:var(--bg-secondary);border-radius:999px;height:7px;overflow:hidden;margin-bottom:6px;">
+            <div style="height:100%;border-radius:999px;background:${j.color};width:${rate}%;transition:width 0.5s;"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text-muted);">
+            <span style="color:${j.color};font-weight:600;">${rate}%</span>
+            ${hoursNeeded > 0 ? `<span>あと ${hoursNeeded}h で目標達成</span>` : `<span style="color:#10b981;">🎉 達成！</span>`}
+          </div>
+        </div>`;
+      }).join('');
+    }
+  }
+
+  // ── 勤務記録リスト ──
+  const list = document.getElementById('workLogList');
+  if (!list) return;
+  const logs = logsThisMonth.sort((a,b) => b.date.localeCompare(a.date));
+  if (logs.length === 0) {
+    list.innerHTML = '<div class="empty-state"><div class="empty-icon">⏱️</div><p>勤務記録を追加しましょう</p></div>';
+    return;
+  }
+  list.innerHTML = logs.map(w => {
+    const job = state.jobs.find(j => j.id === w.jobId) || { name: '不明', icon: '💼', color: '#94a3b8' };
+    const [,mo,d] = w.date.split('-');
+    return `
+    <div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);">
+      <div style="width:36px;height:36px;border-radius:10px;background:${job.color}22;border:1px solid ${job.color}44;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;">${job.icon}</div>
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:13px;font-weight:600;">${parseInt(mo)}月${parseInt(d)}日 <span style="font-size:11px;color:${job.color};">${job.name}</span></div>
+        <div style="font-size:11px;color:var(--text-muted);">${w.hours}h · 時給¥${w.wage.toLocaleString()}${w.memo ? ' · ' + w.memo : ''}</div>
+      </div>
+      <div style="font-size:15px;font-weight:700;color:#10b981;flex-shrink:0;">¥${w.pay.toLocaleString()}</div>
+      <div style="display:flex;gap:4px;flex-shrink:0;">
+        <button onclick="openWorkLogModal(${w.id})" style="background:var(--bg-hover);border:1px solid var(--border);border-radius:6px;padding:3px 7px;color:var(--text-muted);cursor:pointer;font-size:11px;">✏️</button>
+        <button onclick="deleteWorkLog(${w.id})" style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.2);border-radius:6px;padding:3px 7px;color:#ef4444;cursor:pointer;font-size:11px;">🗑</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+
+// ─── クレジットカード管理 ───
+let editingCCId = null;
+let ccColor = '#8b5cf6';
+
+function selectCCColor(el) {
+  document.querySelectorAll('.cc-color').forEach(e => e.style.border = '2px solid transparent');
+  el.style.border = '2px solid white';
+  ccColor = el.dataset.color;
+}
+
+function openCCModal(id = null) {
+  editingCCId = id;
+  ccColor = '#8b5cf6';
+  document.querySelectorAll('.cc-color').forEach((e,i) => e.style.border = i===0 ? '2px solid white' : '2px solid transparent');
+  ['ccName','ccPoints','ccExpiry'].forEach(k => document.getElementById(k).value = '');
+  ['ccCloseDay','ccPayDay','ccRate'].forEach(k => document.getElementById(k).value = '');
+  if (id !== null) {
+    const c = state.cards.find(c => c.id === id);
+    if (c) {
+      document.getElementById('ccName').value = c.name;
+      document.getElementById('ccCloseDay').value = c.closeDay;
+      document.getElementById('ccPayDay').value = c.payDay;
+      document.getElementById('ccRate').value = c.rate;
+      document.getElementById('ccPoints').value = c.points;
+      document.getElementById('ccExpiry').value = c.expiry || '';
+      ccColor = c.color;
+      const el = document.querySelector(`.cc-color[data-color="${c.color}"]`);
+      if (el) { document.querySelectorAll('.cc-color').forEach(e => e.style.border = '2px solid transparent'); el.style.border = '2px solid white'; }
+    }
+    document.getElementById('ccModalTitle').textContent = '✏️ カードを編集';
+    document.getElementById('ccSaveBtn').textContent = '更新する';
+  } else {
+    document.getElementById('ccModalTitle').textContent = '💳 カードを追加';
+    document.getElementById('ccSaveBtn').textContent = '保存する';
+  }
+  document.getElementById('ccModal').classList.add('show');
+}
+
+function saveCC() {
+  const name = document.getElementById('ccName').value.trim();
+  const closeDay = parseInt(document.getElementById('ccCloseDay').value) || 0;
+  const payDay = parseInt(document.getElementById('ccPayDay').value) || 0;
+  const rate = parseFloat(document.getElementById('ccRate').value) || 0;
+  const points = parseInt(document.getElementById('ccPoints').value) || 0;
+  const expiry = document.getElementById('ccExpiry').value || '';
+  if (!name) { showToast('カード名を入力してください'); return; }
+  if (editingCCId !== null) {
+    const idx = state.cards.findIndex(c => c.id === editingCCId);
+    if (idx >= 0) state.cards[idx] = { ...state.cards[idx], name, closeDay, payDay, rate, points, expiry, color: ccColor };
+    showToast('カードを更新しました');
+  } else {
+    state.cards.push({ id: Date.now(), name, closeDay, payDay, rate, points, expiry, color: ccColor });
+    showToast(`「${name}」を追加しました`);
+  }
+  closeModal('ccModal');
+  renderCreditCard();
+}
+
+function deleteCC(id) {
+  if (!confirm('このカードを削除しますか？（利用明細も全て削除されます）')) return;
+  state.cards = state.cards.filter(c => c.id !== id);
+  state.ccTransactions = state.ccTransactions.filter(t => t.cardId !== id);
+  renderCreditCard(); showToast('削除しました');
+}
+
+// 利用記録
+let editingCCTxId = null;
+function openCCTxModal(id = null) {
+  editingCCTxId = id;
+  const sel = document.getElementById('ccTxCardId');
+  sel.innerHTML = state.cards.length === 0
+    ? '<option value="">カードを先に追加してください</option>'
+    : state.cards.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+  const today = new Date().toISOString().slice(0,10);
+  document.getElementById('ccTxDate').value = today;
+  document.getElementById('ccTxDesc').value = '';
+  document.getElementById('ccTxAmount').value = '';
+  document.getElementById('ccTxPointsPreview').textContent = '0 pt';
+  if (id !== null) {
+    const t = state.ccTransactions.find(t => t.id === id);
+    if (t) {
+      sel.value = t.cardId;
+      document.getElementById('ccTxDate').value = t.date;
+      document.getElementById('ccTxDesc').value = t.desc;
+      document.getElementById('ccTxAmount').value = t.amount;
+      document.getElementById('ccTxCat').value = t.category;
+      calcCCPoints();
+    }
+    document.getElementById('ccTxModalTitle').textContent = '✏️ 利用記録を編集';
+    document.getElementById('ccTxSaveBtn').textContent = '更新する';
+  } else {
+    document.getElementById('ccTxModalTitle').textContent = '💳 カード利用を記録';
+    document.getElementById('ccTxSaveBtn').textContent = '保存する';
+  }
+  document.getElementById('ccTxModal').classList.add('show');
+}
+
+function onCCCardSelect() { calcCCPoints(); }
+
+function calcCCPoints() {
+  const cardId = parseInt(document.getElementById('ccTxCardId').value);
+  const card = state.cards.find(c => c.id === cardId);
+  const amount = parseInt(document.getElementById('ccTxAmount').value) || 0;
+  const pts = card ? Math.floor(amount * card.rate / 100) : 0;
+  document.getElementById('ccTxPointsPreview').textContent = pts.toLocaleString() + ' pt';
+}
+
+function saveCCTx() {
+  const cardId = parseInt(document.getElementById('ccTxCardId').value);
+  const date = document.getElementById('ccTxDate').value;
+  const desc = document.getElementById('ccTxDesc').value.trim();
+  const amount = parseInt(document.getElementById('ccTxAmount').value) || 0;
+  const category = document.getElementById('ccTxCat').value;
+  if (!cardId || !date || !desc || !amount) { showToast('全ての項目を入力してください'); return; }
+  const card = state.cards.find(c => c.id === cardId);
+  const points = card ? Math.floor(amount * card.rate / 100) : 0;
+  if (editingCCTxId !== null) {
+    const idx = state.ccTransactions.findIndex(t => t.id === editingCCTxId);
+    if (idx >= 0) state.ccTransactions[idx] = { ...state.ccTransactions[idx], cardId, date, desc, amount, points, category };
+    showToast('記録を更新しました');
+  } else {
+    state.ccTransactions.push({ id: Date.now(), cardId, date, desc, amount, points, category });
+    // カードのポイント残高も加算
+    if (card) {
+      const cidx = state.cards.findIndex(c => c.id === cardId);
+      if (cidx >= 0) state.cards[cidx].points = (state.cards[cidx].points || 0) + points;
+    }
+    showToast(`${points > 0 ? points + 'pt獲得！ ' : ''}¥${amount.toLocaleString()} を記録しました`);
+  }
+  closeModal('ccTxModal');
+  renderCreditCard();
+}
+
+function deleteCCTx(id) {
+  if (!confirm('この利用記録を削除しますか？')) return;
+  state.ccTransactions = state.ccTransactions.filter(t => t.id !== id);
+  renderCreditCard(); showToast('削除しました');
+}
+
+function renderCreditCard() {
+  const m = state.currentMonth;
+  const txsThisMonth = state.ccTransactions.filter(t => isSameMonth(t.date, m));
+  const today = new Date();
+
+  // ── 合計バナー ──
+  const totalSpend = txsThisMonth.reduce((s,t) => s+t.amount, 0);
+  const totalPoints = state.cards.reduce((s,c) => s + (c.points||0), 0);
+  const setEl = (id, val, color) => { const el = document.getElementById(id); if(!el) return; el.textContent = val; if(color) el.style.color = color; };
+  setEl('ccTotalSpend', '¥' + totalSpend.toLocaleString());
+  setEl('ccTotalPoints', totalPoints.toLocaleString() + ' pt');
+
+  // ── 支払い期限アラート ──
+  const alertDiv = document.getElementById('ccUpcomingAlert');
+  if (alertDiv) {
+    const alerts = state.cards.map(c => {
+      const daysToClose = c.closeDay >= today.getDate() ? c.closeDay - today.getDate() : 31 - today.getDate() + c.closeDay;
+      const daysToPay = c.payDay >= today.getDate() ? c.payDay - today.getDate() : 31 - today.getDate() + c.payDay;
+      return { c, daysToClose, daysToPay };
+    }).filter(x => x.daysToClose <= 5 || x.daysToPay <= 5);
+    if (alerts.length > 0) {
+      alertDiv.style.display = '';
+      alertDiv.innerHTML = alerts.map(({ c, daysToClose, daysToPay }) => {
+        const msgs = [];
+        if (daysToClose <= 5) msgs.push(`締め日まであと${daysToClose}日`);
+        if (daysToPay <= 5) msgs.push(`支払日まであと${daysToPay}日`);
+        return `<div style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.3);border-radius:8px;margin-bottom:6px;font-size:12px;">
+          <span>⚡</span>
+          <span style="font-weight:600;color:#f59e0b;">${c.name}</span>
+          <span style="color:var(--text-muted);">${msgs.join('・')}</span>
+        </div>`;
+      }).join('');
+    } else {
+      alertDiv.style.display = 'none';
+    }
+  }
+
+  // ── カードカード（ビジュアル） ──
+  const cardsEl = document.getElementById('ccCards');
+  if (cardsEl) {
+    if (state.cards.length === 0) {
+      cardsEl.innerHTML = `<div class="card" style="grid-column:1/-1;text-align:center;padding:40px;">
+        <div style="font-size:36px;margin-bottom:12px;">💳</div>
+        <div style="color:var(--text-muted);font-size:13px;">カードを追加してください</div>
+      </div>`;
+    } else {
+      cardsEl.innerHTML = state.cards.map(c => {
+        const myTxAll  = state.ccTransactions.filter(t => t.cardId === c.id);
+        const myTxMonth = txsThisMonth.filter(t => t.cardId === c.id);
+        const spentMonth = myTxMonth.reduce((s,t) => s+t.amount, 0);
+        const spentTotal = myTxAll.reduce((s,t) => s+t.amount, 0);
+        const earnedMonth = myTxMonth.reduce((s,t) => s+t.points, 0);
+        const daysToClose = c.closeDay >= today.getDate() ? c.closeDay - today.getDate() : 31 - today.getDate() + c.closeDay;
+        const daysToPay  = c.payDay  >= today.getDate() ? c.payDay  - today.getDate() : 31 - today.getDate() + c.payDay;
+
+        // ポイント有効期限
+        let expiryAlert = '';
+        if (c.expiry) {
+          const daysToExp = Math.ceil((new Date(c.expiry) - today) / 86400000);
+          if (daysToExp <= 30 && daysToExp >= 0)
+            expiryAlert = `<div style="font-size:10px;color:#ef4444;margin-top:6px;text-align:center;">⚠️ ポイント期限まであと${daysToExp}日</div>`;
+        }
+
+        // カテゴリ内訳（今月・上位4件）
+        const catMap = {};
+        myTxMonth.forEach(t => { catMap[t.category] = (catMap[t.category]||0) + t.amount; });
+        const catEntries = Object.entries(catMap).sort((a,b)=>b[1]-a[1]).slice(0,4);
+        const catHTML = catEntries.length > 0
+          ? `<div style="margin-top:12px;">
+              <div style="font-size:9px;color:var(--text-muted);margin-bottom:6px;letter-spacing:1px;text-transform:uppercase;">今月のカテゴリ内訳</div>
+              ${catEntries.map(([cat, amt]) => {
+                const pct = spentMonth > 0 ? Math.round(amt/spentMonth*100) : 0;
+                return `<div style="margin-bottom:5px;">
+                  <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:2px;">
+                    <span style="color:var(--text-secondary);">${cat}</span>
+                    <span style="color:var(--text-primary);font-weight:600;">¥${amt.toLocaleString()} <span style="color:var(--text-muted);font-weight:400;">(${pct}%)</span></span>
+                  </div>
+                  <div style="background:var(--bg-secondary);border-radius:999px;height:4px;overflow:hidden;">
+                    <div style="height:100%;border-radius:999px;background:${c.color};width:${pct}%;"></div>
+                  </div>
+                </div>`;
+              }).join('')}
+            </div>`
+          : '';
+
+        return `
+        <div class="card" style="padding:0;overflow:hidden;border-color:${c.color}44;">
+          <!-- カード風ヘッダー -->
+          <div style="background:linear-gradient(135deg,${c.color}dd,${c.color}88);padding:16px;position:relative;">
+            <div style="font-size:15px;font-weight:700;color:#fff;margin-bottom:2px;">💳 ${c.name}</div>
+            <div style="font-size:10px;color:rgba(255,255,255,0.75);">還元率 ${c.rate}%</div>
+            <div style="position:absolute;top:12px;right:12px;display:flex;gap:4px;">
+              <button onclick="openCCModal(${c.id})" style="background:rgba(255,255,255,0.2);border:none;border-radius:6px;padding:4px 7px;color:#fff;cursor:pointer;font-size:10px;">✏️</button>
+              <button onclick="deleteCC(${c.id})"   style="background:rgba(255,255,255,0.2);border:none;border-radius:6px;padding:4px 7px;color:#fff;cursor:pointer;font-size:10px;">🗑</button>
+            </div>
+          </div>
+
+          <!-- 数値エリア -->
+          <div style="padding:14px;">
+
+            <!-- 今月利用（大きく） -->
+            <div style="background:${c.color}11;border:1px solid ${c.color}33;border-radius:10px;padding:12px;text-align:center;margin-bottom:10px;">
+              <div style="font-size:10px;color:var(--text-muted);margin-bottom:2px;">今月の利用金額</div>
+              <div style="font-size:26px;font-weight:700;font-family:'Space Mono',monospace;color:${c.color};">¥${spentMonth.toLocaleString()}</div>
+            </div>
+
+            <!-- 4つのメトリクス -->
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;">
+              <div style="background:var(--bg-secondary);border-radius:8px;padding:9px;text-align:center;">
+                <div style="font-size:9px;color:var(--text-muted);margin-bottom:2px;">累計利用合計</div>
+                <div style="font-size:13px;font-weight:700;color:var(--text-primary);font-family:'Space Mono',monospace;">¥${spentTotal.toLocaleString()}</div>
+              </div>
+              <div style="background:var(--bg-secondary);border-radius:8px;padding:9px;text-align:center;">
+                <div style="font-size:9px;color:var(--text-muted);margin-bottom:2px;">今月獲得PT</div>
+                <div style="font-size:13px;font-weight:700;color:#f59e0b;font-family:'Space Mono',monospace;">${earnedMonth.toLocaleString()}pt</div>
+              </div>
+              <div style="background:var(--bg-secondary);border-radius:8px;padding:9px;text-align:center;">
+                <div style="font-size:9px;color:var(--text-muted);margin-bottom:2px;">ポイント残高</div>
+                <div style="font-size:13px;font-weight:700;color:#f59e0b;font-family:'Space Mono',monospace;">${(c.points||0).toLocaleString()}pt</div>
+              </div>
+              <div style="background:var(--bg-secondary);border-radius:8px;padding:9px;text-align:center;">
+                <div style="font-size:9px;color:var(--text-muted);margin-bottom:2px;">今月件数</div>
+                <div style="font-size:13px;font-weight:700;color:var(--text-primary);font-family:'Space Mono',monospace;">${myTxMonth.length}件</div>
+              </div>
+            </div>
+
+            <!-- カテゴリ内訳 -->
+            ${catHTML}
+
+            <!-- 締め日・支払日 -->
+            <div style="display:flex;gap:8px;margin-top:10px;">
+              <div style="flex:1;padding:6px 8px;background:${daysToClose<=3?'rgba(245,158,11,0.12)':'var(--bg-secondary)'};border-radius:6px;text-align:center;">
+                <div style="color:var(--text-muted);font-size:9px;">締め日</div>
+                <div style="font-size:11px;font-weight:600;color:${daysToClose<=3?'#f59e0b':'var(--text-primary)'};">毎月${c.closeDay}日${daysToClose<=5?` (あと${daysToClose}日)`:''}</div>
+              </div>
+              <div style="flex:1;padding:6px 8px;background:${daysToPay<=3?'rgba(239,68,68,0.12)':'var(--bg-secondary)'};border-radius:6px;text-align:center;">
+                <div style="color:var(--text-muted);font-size:9px;">支払日</div>
+                <div style="font-size:11px;font-weight:600;color:${daysToPay<=3?'#ef4444':'var(--text-primary)'};">毎月${c.payDay}日${daysToPay<=5?` (あと${daysToPay}日)`:''}</div>
+              </div>
+            </div>
+            ${expiryAlert}
+          </div>
+        </div>`;
+      }).join('');
+    }
+  }
+
+  // ── 利用明細リスト ──
+  const list = document.getElementById('ccTxList');
+  if (!list) return;
+  const txsSorted = txsThisMonth.sort((a,b) => b.date.localeCompare(a.date));
+  if (txsSorted.length === 0) {
+    list.innerHTML = '<div class="empty-state"><div class="empty-icon">💳</div><p>利用明細を記録しましょう</p></div>';
+    return;
+  }
+  list.innerHTML = txsSorted.map(t => {
+    const card = state.cards.find(c => c.id === t.cardId) || { name: '不明', color: '#94a3b8' };
+    const [,mo,d] = t.date.split('-');
+    return `
+    <div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);">
+      <div style="width:36px;height:36px;border-radius:10px;background:${card.color}22;border:1px solid ${card.color}44;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;">💳</div>
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:13px;font-weight:600;">${t.desc} <span style="font-size:10px;color:${card.color};background:${card.color}22;padding:1px 6px;border-radius:8px;">${card.name}</span></div>
+        <div style="font-size:11px;color:var(--text-muted);">${parseInt(mo)}月${parseInt(d)}日 · ${t.category}${t.points>0?' · +'+t.points+'pt':''}</div>
+      </div>
+      <div style="text-align:right;flex-shrink:0;">
+        <div style="font-size:14px;font-weight:700;color:#8b5cf6;">¥${t.amount.toLocaleString()}</div>
+        ${t.points>0?`<div style="font-size:10px;color:#f59e0b;">+${t.points}pt</div>`:''}
+      </div>
+      <div style="display:flex;gap:4px;flex-shrink:0;">
+        <button onclick="openCCTxModal(${t.id})" style="background:var(--bg-hover);border:1px solid var(--border);border-radius:6px;padding:3px 7px;color:var(--text-muted);cursor:pointer;font-size:11px;">✏️</button>
+        <button onclick="deleteCCTx(${t.id})" style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.2);border-radius:6px;padding:3px 7px;color:#ef4444;cursor:pointer;font-size:11px;">🗑</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+
+// ─── レポート ───
+let reportYear = new Date().getFullYear();
+let reportMonth = new Date().getMonth(); // 0-indexed
+let reportTab = 'monthly';
+let reportYearChartInst = null;
+let reportBurnChartInst = null;
+
+function reportYearShift(d) {
+  reportYear += d;
+  document.getElementById('reportYearLabel').textContent = reportYear + '年';
+  if (reportTab === 'monthly') renderReportMonthly();
+  else renderReportYearly();
+}
+
+function switchReportTab(tab) {
+  reportTab = tab;
+  const isMon = tab === 'monthly';
+  document.getElementById('reportMonthly').style.display = isMon ? '' : 'none';
+  document.getElementById('reportYearly').style.display  = isMon ? 'none' : '';
+  document.getElementById('rTabMonthly').style.background = isMon ? 'var(--blue)' : 'transparent';
+  document.getElementById('rTabMonthly').style.color = isMon ? '#fff' : 'var(--text-muted)';
+  document.getElementById('rTabYearly').style.background  = isMon ? 'transparent' : 'var(--blue)';
+  document.getElementById('rTabYearly').style.color  = isMon ? 'var(--text-muted)' : '#fff';
+  if (isMon) renderReportMonthly(); else renderReportYearly();
+}
+
+function getMonthTxs(year, month) {
+  const d = new Date(year, month, 1);
+  return state.transactions.filter(t =>
+    Number(t.roomId) === Number(state.currentRoom) && isSameMonth(t.date, d)
+  );
+}
+
+function renderReport() {
+  reportYear = new Date().getFullYear();
+  reportMonth = new Date().getMonth();
+  document.getElementById('reportYearLabel').textContent = reportYear + '年';
+  switchReportTab('monthly');
+}
+
+function renderReportMonthly() {
+  // 月ピッカー
+  const picker = document.getElementById('reportMonthPicker');
+  if (picker) {
+    picker.innerHTML = Array.from({length:12},(_,i) => {
+      const hasTx = getMonthTxs(reportYear, i).length > 0;
+      const active = i === reportMonth;
+      return `<button onclick="selectReportMonth(${i})"
+        style="border:none;border-radius:8px;padding:6px 10px;font-size:12px;cursor:pointer;font-family:inherit;font-weight:600;
+               background:${active?'var(--blue)':hasTx?'var(--bg-secondary)':'transparent'};
+               color:${active?'#fff':hasTx?'var(--text-primary)':'var(--text-muted)'};
+               border:1px solid ${active?'var(--blue)':hasTx?'var(--border)':'transparent'};">
+        ${i+1}月
+      </button>`;
+    }).join('');
+  }
+
+  const txs  = getMonthTxs(reportYear, reportMonth);
+  const income  = txs.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
+  const expense = txs.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
+  const saving  = income - expense;
+
+  // 前月データ
+  const pm = reportMonth === 0 ? 11 : reportMonth - 1;
+  const py = reportMonth === 0 ? reportYear - 1 : reportYear;
+  const prevTxs = getMonthTxs(py, pm);
+  const prevIncome  = prevTxs.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
+  const prevExpense = prevTxs.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
+  const prevSaving  = prevIncome - prevExpense;
+
+  function diffBadge(cur, prev) {
+    if (prev === 0) return '';
+    const d = cur - prev;
+    const sign = d >= 0 ? '+' : '';
+    const col = d >= 0 ? '#10b981' : '#ef4444';
+    return `<div style="font-size:10px;color:${col};font-weight:600;margin-top:2px;">${sign}¥${Math.abs(d).toLocaleString()} 前月比</div>`;
+  }
+
+  const compareCards = document.getElementById('reportCompareCards');
+  if (compareCards) {
+    compareCards.innerHTML = [
+      {label:'収入', val:income, prev:prevIncome, color:'#10b981'},
+      {label:'支出', val:expense, prev:prevExpense, color:'#ef4444'},
+      {label:'収支差', val:saving, prev:prevSaving, color: saving>=0?'#3b82f6':'#ef4444'},
+    ].map(({label,val,prev,color}) => `
+      <div class="card" style="text-align:center;padding:14px;">
+        <div style="font-size:10px;color:var(--text-muted);margin-bottom:4px;">${label}</div>
+        <div style="font-size:18px;font-weight:700;font-family:'Space Mono',monospace;color:${color};">${val<0?'-':''}¥${Math.abs(val).toLocaleString()}</div>
+        ${diffBadge(val, prev)}
+      </div>`).join('');
+  }
+
+  // 負家比率
+  const burnPct = income > 0 ? Math.min(Math.round(expense/income*100),200) : 0;
+  const burnColor = burnPct >= 100 ? '#ef4444' : burnPct >= 80 ? '#f59e0b' : '#10b981';
+  const setEl = (id,v,c) => { const el=document.getElementById(id); if(!el)return; el.textContent=v; if(c)el.style.color=c; };
+  setEl('reportBurnPct', income>0 ? burnPct+'%' : '-', burnColor);
+  const bar = document.getElementById('reportBurnBar');
+  if (bar) { bar.style.width = Math.min(burnPct,100)+'%'; bar.style.background = burnColor; }
+  setEl('reportBurnNote',
+    burnPct >= 100 ? '⚠️ 支出が収入を超えています' :
+    burnPct >= 80  ? '注意：支出が収入の80%を超えています' :
+    burnPct > 0    ? `収入の${burnPct}%を支出しています。貯蓄率 ${100-burnPct}%` : '収入データがありません', null);
+
+  // カテゴリランキング
+  const catMap = {};
+  txs.filter(t=>t.type==='expense').forEach(t => { catMap[t.category]=(catMap[t.category]||0)+t.amount; });
+  const catList = Object.entries(catMap).sort((a,b)=>b[1]-a[1]);
+  const maxCat = catList[0]?.[1] || 1;
+  const ranking = document.getElementById('reportCatRanking');
+  if (ranking) {
+    ranking.innerHTML = catList.length === 0
+      ? '<div style="color:var(--text-muted);text-align:center;padding:20px;">支出データがありません</div>'
+      : catList.map(([cat,amt],i) => {
+          const pct = Math.round(amt/maxCat*100);
+          const medals = ['🥇','🥈','🥉'];
+          return `<div style="padding:8px 0;border-bottom:1px solid var(--border);">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+              <span style="font-size:13px;">${medals[i]||`${i+1}.`} ${cat}</span>
+              <span style="font-size:13px;font-weight:700;color:#ef4444;">¥${amt.toLocaleString()}</span>
+            </div>
+            <div style="background:var(--bg-secondary);border-radius:999px;height:5px;overflow:hidden;">
+              <div style="height:100%;border-radius:999px;background:linear-gradient(90deg,#ef4444,#f97316);width:${pct}%;"></div>
+            </div>
+          </div>`;
+        }).join('');
+  }
+}
+
+function selectReportMonth(m) {
+  reportMonth = m;
+  renderReportMonthly();
+}
+
+function renderReportYearly() {
+  // 12ヶ月分データ集計
+  const months = Array.from({length:12},(_,i) => {
+    const txs = getMonthTxs(reportYear, i);
+    const income  = txs.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
+    const expense = txs.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
+    return { income, expense, saving: income-expense, burn: income>0?Math.round(expense/income*100):0 };
+  });
+
+  const totalIncome  = months.reduce((s,m)=>s+m.income,0);
+  const totalExpense = months.reduce((s,m)=>s+m.expense,0);
+  const totalSaving  = totalIncome - totalExpense;
+  const activeMonths = months.filter(m=>m.income>0||m.expense>0).length || 1;
+
+  // サマリーカード
+  const summary = document.getElementById('reportYearlySummary');
+  if (summary) {
+    summary.innerHTML = [
+      {label:'年間収入合計', val:totalIncome, sub:`月平均 ¥${Math.round(totalIncome/activeMonths).toLocaleString()}`, color:'#10b981'},
+      {label:'年間支出合計', val:totalExpense, sub:`月平均 ¥${Math.round(totalExpense/activeMonths).toLocaleString()}`, color:'#ef4444'},
+      {label:'年間収支差',   val:totalSaving,  sub:`月平均 ¥${Math.round(Math.abs(totalSaving)/activeMonths).toLocaleString()}`, color:totalSaving>=0?'#3b82f6':'#ef4444'},
+    ].map(({label,val,sub,color})=>`
+      <div class="card" style="text-align:center;padding:14px;">
+        <div style="font-size:10px;color:var(--text-muted);margin-bottom:4px;">${label}</div>
+        <div style="font-size:16px;font-weight:700;font-family:'Space Mono',monospace;color:${color};">${val<0?'-':''}¥${Math.abs(val).toLocaleString()}</div>
+        <div style="font-size:10px;color:var(--text-muted);margin-top:3px;">${sub}</div>
+      </div>`).join('');
+  }
+
+  // 月別推移グラフ
+  const labels = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
+  if (reportYearChartInst) { reportYearChartInst.destroy(); reportYearChartInst = null; }
+  const ctx1 = document.getElementById('reportYearChart');
+  if (ctx1) {
+    reportYearChartInst = new Chart(ctx1, {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [
+          { label:'収入', data: months.map(m=>m.income),  backgroundColor:'rgba(16,185,129,0.7)', borderRadius:4 },
+          { label:'支出', data: months.map(m=>m.expense), backgroundColor:'rgba(239,68,68,0.7)',  borderRadius:4 },
+          { label:'収支差', data: months.map(m=>m.saving), type:'line',
+            borderColor:'#3b82f6', backgroundColor:'rgba(59,130,246,0.15)', fill:true,
+            tension:0.4, pointBackgroundColor:'#3b82f6', pointRadius:3 }
+        ]
+      },
+      options: {
+        responsive:true, interaction:{mode:'index',intersect:false},
+        plugins:{ legend:{ labels:{ color:'#94a3b8', font:{size:11} } } },
+        scales:{
+          x:{ ticks:{color:'#64748b',font:{size:10}}, grid:{color:'rgba(255,255,255,0.05)'} },
+          y:{ ticks:{color:'#64748b',font:{size:10}, callback:v=>'¥'+(v/1000).toFixed(0)+'k'}, grid:{color:'rgba(255,255,255,0.05)'} }
+        }
+      }
+    });
+  }
+
+  // 負家比率推移グラフ
+  if (reportBurnChartInst) { reportBurnChartInst.destroy(); reportBurnChartInst = null; }
+  const ctx2 = document.getElementById('reportBurnChart');
+  if (ctx2) {
+    const burnData = months.map(m=>m.burn);
+    reportBurnChartInst = new Chart(ctx2, {
+      type:'line',
+      data:{
+        labels,
+        datasets:[{
+          label:'負家比率(%)', data:burnData,
+          borderColor:'#f59e0b', backgroundColor:'rgba(245,158,11,0.1)', fill:true,
+          tension:0.4, pointBackgroundColor: burnData.map(v=>v>=100?'#ef4444':v>=80?'#f59e0b':'#10b981'),
+          pointRadius:4
+        }]
+      },
+      options:{
+        responsive:true,
+        plugins:{ legend:{labels:{color:'#94a3b8',font:{size:11}}},
+          annotation:{} },
+        scales:{
+          x:{ticks:{color:'#64748b',font:{size:10}},grid:{color:'rgba(255,255,255,0.05)'}},
+          y:{ticks:{color:'#64748b',font:{size:10},callback:v=>v+'%'},
+             grid:{color:'rgba(255,255,255,0.05)'},
+             suggestedMin:0, suggestedMax:120}
+        }
+      }
+    });
+  }
+
+  // 年間カテゴリランキング
+  const catMap = {};
+  Array.from({length:12},(_,i)=>getMonthTxs(reportYear,i)).flat()
+    .filter(t=>t.type==='expense')
+    .forEach(t=>{ catMap[t.category]=(catMap[t.category]||0)+t.amount; });
+  const catList = Object.entries(catMap).sort((a,b)=>b[1]-a[1]);
+  const maxCat = catList[0]?.[1]||1;
+  const yCatEl = document.getElementById('reportYearlyCatRanking');
+  if (yCatEl) {
+    yCatEl.innerHTML = catList.length===0
+      ? '<div style="color:var(--text-muted);text-align:center;padding:20px;">支出データがありません</div>'
+      : catList.map(([cat,amt],i)=>{
+          const pct=Math.round(amt/maxCat*100);
+          const medals=['🥇','🥈','🥉'];
+          return `<div style="padding:8px 0;border-bottom:1px solid var(--border);">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+              <span style="font-size:13px;">${medals[i]||`${i+1}.`} ${cat}</span>
+              <span style="font-size:13px;font-weight:700;color:#ef4444;">¥${amt.toLocaleString()}</span>
+            </div>
+            <div style="background:var(--bg-secondary);border-radius:999px;height:5px;overflow:hidden;">
+              <div style="height:100%;border-radius:999px;background:linear-gradient(90deg,#8b5cf6,#ec4899);width:${pct}%;"></div>
+            </div>
+          </div>`;
+        }).join('');
+  }
+}
+
+
+// ─── Excel出力 (SheetJS) ───
+function exportExcel(type) {
+  if (typeof XLSX === 'undefined') {
+    showToast('Excelライブラリを読み込み中...'); 
+    const s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+    s.onload = () => exportExcel(type);
+    document.head.appendChild(s);
+    return;
+  }
+  const wb = XLSX.utils.book_new();
+  const now = new Date();
+  const dateStr = now.toISOString().slice(0,10);
+
+  if (type === 'transactions') {
+    const rows = [['日付','種別','カテゴリ','金額','メモ','ルーム']];
+    state.transactions.sort((a,b)=>a.date.localeCompare(b.date)).forEach(t => {
+      const room = state.rooms.find(r=>r.id===t.roomId);
+      rows.push([t.date, t.type==='income'?'収入':'支出', t.category, t.amount, t.memo||'', room?.name||'']);
+    });
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rows), '収支明細');
+    XLSX.writeFile(wb, `収支明細_${dateStr}.xlsx`);
+
+  } else if (type === 'monthly') {
+    const rows = [['年','月','収入','支出','収支差','貯蓄率(%)']];
+    // 全取引から年月一覧を作成
+    const ymSet = new Set(state.transactions.map(t=>t.date.slice(0,7)));
+    [...ymSet].sort().forEach(ym => {
+      const [y,m] = ym.split('-').map(Number);
+      const txs = state.transactions.filter(t=>t.date.startsWith(ym));
+      const inc = txs.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
+      const exp = txs.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
+      const diff = inc - exp;
+      const rate = inc > 0 ? Math.round(diff/inc*100) : 0;
+      rows.push([y, m, inc, exp, diff, rate]);
+    });
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rows), '月別サマリー');
+    XLSX.writeFile(wb, `月別サマリー_${dateStr}.xlsx`);
+
+  } else if (type === 'budget') {
+    const m = state.currentMonth;
+    const txs = state.transactions.filter(t=>
+      Number(t.roomId)===Number(state.currentRoom) && t.type==='expense' && isSameMonth(t.date,m)
+    );
+    const rows = [['カテゴリ','予算','使用額','残り','達成率(%)']];
+    state.budgets.forEach(b => {
+      const used = txs.filter(t=>t.category===b.name).reduce((s,t)=>s+t.amount,0);
+      const remain = b.amount - used;
+      const rate = b.amount > 0 ? Math.round(used/b.amount*100) : 0;
+      rows.push([b.name, b.amount, used, remain, rate]);
+    });
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rows), '予算vs実績');
+    XLSX.writeFile(wb, `予算実績_${dateStr}.xlsx`);
+
+  } else if (type === 'creditcard') {
+    const rows = [['日付','カード名','店舗・内容','カテゴリ','金額','獲得ポイント']];
+    state.ccTransactions.sort((a,b)=>a.date.localeCompare(b.date)).forEach(t => {
+      const card = state.cards.find(c=>c.id===t.cardId);
+      rows.push([t.date, card?.name||'不明', t.desc, t.category, t.amount, t.points]);
+    });
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rows), 'クレカ明細');
+    XLSX.writeFile(wb, `クレカ明細_${dateStr}.xlsx`);
+
+  } else if (type === 'worklogs') {
+    const rows = [['日付','バイト先','勤務時間(h)','時給','稼ぎ','メモ']];
+    state.workLogs.sort((a,b)=>a.date.localeCompare(b.date)).forEach(w => {
+      const job = state.jobs.find(j=>j.id===w.jobId);
+      rows.push([w.date, job?.name||'不明', w.hours, w.wage, w.pay, w.memo||'']);
+    });
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rows), '勤務記録');
+    XLSX.writeFile(wb, `勤務記録_${dateStr}.xlsx`);
+  }
+  showToast('Excelファイルをダウンロードしました');
+}
+
+// ─── バックアップ強化 ───
+let autoBackupEnabled = true;
+
+function backupData() {
+  const data = JSON.stringify(state, null, 2);
+  const blob = new Blob([data], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `kakeibo_backup_${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+  showToast('バックアップを保存しました');
+}
+
+function restoreBackup(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (!data.transactions && !data.rooms) { showToast('❌ 無効なバックアップファイルです'); return; }
+      if (!confirm('現在のデータを上書きして復元しますか？\nこの操作は取り消せません。')) return;
+      // stateの各キーを復元
+      Object.keys(data).forEach(k => { if (k in state) state[k] = data[k]; });
+      // currentMonthはDateオブジェクトに変換
+      if (data.currentMonth) state.currentMonth = new Date(data.currentMonth);
+      renderAll();
+      showToast('✅ バックアップから復元しました');
+      saveAutoBackup();
+      renderBackupPage();
+    } catch(err) {
+      showToast('❌ ファイルの読み込みに失敗しました');
+    }
+  };
+  reader.readAsText(file);
+  input.value = '';
+}
+
+function toggleAutoBackup() {
+  autoBackupEnabled = !autoBackupEnabled;
+  const toggle = document.getElementById('autoBackupToggle');
+  const knob   = document.getElementById('autoBackupKnob');
+  if (toggle) toggle.style.background = autoBackupEnabled ? 'var(--blue)' : 'var(--border)';
+  if (knob)   knob.style.left = autoBackupEnabled ? '23px' : '3px';
+  if (autoBackupEnabled) saveAutoBackup();
+  showToast(autoBackupEnabled ? '自動バックアップ ON' : '自動バックアップ OFF');
+}
+
+function saveAutoBackup() {
+  if (!autoBackupEnabled) return;
+  try {
+    localStorage.setItem('kakeibo_auto_backup', JSON.stringify(state));
+    localStorage.setItem('kakeibo_auto_backup_time', new Date().toLocaleString('ja-JP'));
+    const el = document.getElementById('autoBackupStatus');
+    if (el) el.textContent = '最終自動保存：' + new Date().toLocaleString('ja-JP');
+  } catch(e) { /* localStorage容量オーバー時は無視 */ }
+}
+
+function loadAutoBackup() {
+  try {
+    const saved = localStorage.getItem('kakeibo_auto_backup');
+    const savedTime = localStorage.getItem('kakeibo_auto_backup_time');
+    if (saved) {
+      const data = JSON.parse(saved);
+      Object.keys(data).forEach(k => { if (k in state) state[k] = data[k]; });
+      if (data.currentMonth) state.currentMonth = new Date(data.currentMonth);
+      console.log('自動バックアップから復元:', savedTime);
+    }
+  } catch(e) {}
+}
+
+function renderBackupPage() {
+  // 自動バックアップ状態
+  const toggle = document.getElementById('autoBackupToggle');
+  const knob   = document.getElementById('autoBackupKnob');
+  if (toggle) toggle.style.background = autoBackupEnabled ? 'var(--blue)' : 'var(--border)';
+  if (knob)   knob.style.left = autoBackupEnabled ? '23px' : '3px';
+  const savedTime = localStorage.getItem('kakeibo_auto_backup_time');
+  const statusEl = document.getElementById('autoBackupStatus');
+  if (statusEl) statusEl.textContent = savedTime ? '最終自動保存：' + savedTime : '最終自動保存：未保存';
+
+  // データ統計
+  const stats = document.getElementById('dataStats');
+  if (!stats) return;
+  const totalTx = state.transactions.length;
+  const totalAmount = state.transactions.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
+  const firstDate = state.transactions.length > 0
+    ? state.transactions.map(t=>t.date).sort()[0] : null;
+  const dataJSON = JSON.stringify(state);
+  const dataSize = (new Blob([dataJSON]).size / 1024).toFixed(1);
+
+  stats.innerHTML = [
+    {label:'総取引件数', val: totalTx + '件', icon:'📋'},
+    {label:'総支出額（全期間）', val:'¥'+totalAmount.toLocaleString(), icon:'💸'},
+    {label:'登録ルーム数', val: state.rooms.length + 'ルーム', icon:'🏠'},
+    {label:'登録カード数', val: state.cards.length + '枚', icon:'💳'},
+    {label:'バイト先数', val: state.jobs.length + '件', icon:'⏱️'},
+    {label:'データ開始日', val: firstDate || '-', icon:'📅'},
+    {label:'データサイズ', val: dataSize + ' KB', icon:'💾'},
+  ].map(({label,val,icon}) => `
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);">
+      <span style="font-size:13px;color:var(--text-muted);">${icon} ${label}</span>
+      <span style="font-size:13px;font-weight:700;">${val}</span>
+    </div>`).join('');
+
+  // 自動バックアップ実行
+  saveAutoBackup();
+}
+
+loadAutoBackup();
+updateDate();
+// Firebase接続前の暫定表示（すぐに上書きされる）
+updateMonthDisplay();
+renderAll();
+setInterval(updateDate, 60000);
+
+// モーダル外クリックで閉じる
+document.querySelectorAll('.modal-overlay').forEach(overlay => {
+  overlay.addEventListener('click', e => {
+    if (e.target === overlay) overlay.classList.remove('show');
+  });
+});
+</script>
+</body>
+</html>
