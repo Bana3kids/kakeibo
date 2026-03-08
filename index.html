@@ -1995,9 +1995,33 @@ function parseDateStr(dateStr) {
   const [y, m, d] = dateStr.split('-').map(Number);
   return new Date(y, m - 1, d);
 }
+
+// 締め日設定：5日締め・6日始まり
+// 例：2月6日〜3月5日 → 「3月」期間
+const CLOSE_DAY = 5; // 締め日
+
+// dateStrが属する「締め日ベースの月」を返す（年,月）
+function getBillingMonth(dateStr) {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  if (d <= CLOSE_DAY) {
+    // 締め日以内 → 当月扱い
+    return { year: y, month: m };
+  } else {
+    // 締め日より後 → 翌月扱い
+    if (m === 12) return { year: y + 1, month: 1 };
+    return { year: y, month: m + 1 };
+  }
+}
+
 function isSameMonth(dateStr, monthDate) {
   const [y, m] = dateStr.split('-').map(Number);
   return y === monthDate.getFullYear() && m === (monthDate.getMonth() + 1);
+}
+
+// 締め日ベースの月判定（バイト以外に使用）
+function isSameBillingMonth(dateStr, monthDate) {
+  const bm = getBillingMonth(dateStr);
+  return bm.year === monthDate.getFullYear() && bm.month === (monthDate.getMonth() + 1);
 }
 
 // 状態管理
@@ -2029,11 +2053,15 @@ function updateDate() {
     `${now.getFullYear()}/${String(now.getMonth()+1).padStart(2,'0')}/${String(now.getDate()).padStart(2,'0')} (${days[now.getDay()]})`;
 }
 
-// 月表示
+// 月表示（締め日ベース：前月6日〜当月5日）
 function updateMonthDisplay() {
   const m = state.currentMonth;
-  document.getElementById('currentMonth').textContent = 
-    `${m.getFullYear()}年${m.getMonth()+1}月`;
+  const year = m.getFullYear();
+  const month = m.getMonth() + 1;
+  const prevMonth = month === 1 ? 12 : month - 1;
+  const prevYear = month === 1 ? year - 1 : year;
+  document.getElementById('currentMonth').textContent =
+    year + '年' + month + '月（' + prevYear + '/' + String(prevMonth).padStart(2,'0') + '/6〜' + year + '/' + String(month).padStart(2,'0') + '/5）';
 }
 
 function changeMonth(delta) {
@@ -2086,7 +2114,7 @@ function selectRoom(id) {
 function updateSummary() {
   const m = state.currentMonth;
   const txs = state.transactions.filter(t =>
-    Number(t.roomId) === Number(state.currentRoom) && isSameMonth(t.date, m)
+    Number(t.roomId) === Number(state.currentRoom) && isSameBillingMonth(t.date, m)
   );
   const income = txs.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
   const expense = txs.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
@@ -2103,7 +2131,7 @@ function updateSummary() {
 function renderTransactions() {
   const m = state.currentMonth;
   const txs = state.transactions
-    .filter(t => Number(t.roomId) === Number(state.currentRoom) && isSameMonth(t.date, m))
+    .filter(t => Number(t.roomId) === Number(state.currentRoom) && isSameBillingMonth(t.date, m))
     .sort((a, b) => new Date(b.date) - new Date(a.date))
     .slice(0, 5);
 
@@ -2562,7 +2590,7 @@ function renderCalendar() {
   const dayMap = {};
   state.transactions.forEach(t => {
     if (Number(t.roomId) !== Number(state.currentRoom)) return;
-    if (!isSameMonth(t.date, new Date(year, month, 1))) return;
+    if (!isSameBillingMonth(t.date, new Date(year, month, 1))) return;
     const key = parseInt(t.date.split('-')[2]);
     if (!dayMap[key]) dayMap[key] = { income: 0, expense: 0, items: [] };
     dayMap[key][t.type] += t.amount;
@@ -2692,7 +2720,7 @@ function getMonthlyData() {
   for (let i = 5; i >= 0; i--) {
     const d = new Date(state.currentMonth.getFullYear(), state.currentMonth.getMonth() - i, 1);
     const txs = state.transactions.filter(t =>
-      Number(t.roomId) === Number(state.currentRoom) && isSameMonth(t.date, d)
+      Number(t.roomId) === Number(state.currentRoom) && isSameBillingMonth(t.date, d)
     );
     result.push({
       label: `${d.getMonth()+1}月`,
@@ -2731,7 +2759,7 @@ function renderMonthlyChart() {
 function renderCategoryCharts() {
   const m = state.currentMonth;
   const txs = state.transactions.filter(t =>
-    Number(t.roomId) === Number(state.currentRoom) && isSameMonth(t.date, m)
+    Number(t.roomId) === Number(state.currentRoom) && isSameBillingMonth(t.date, m)
   );
 
   ['expense','income'].forEach(type => {
@@ -2791,7 +2819,7 @@ function renderWeeklyChart() {
   const weekData = [0,0,0,0,0];
 
   state.transactions.filter(t =>
-    Number(t.roomId)===Number(state.currentRoom) && t.type==='expense' && isSameMonth(t.date, m)
+    Number(t.roomId)===Number(state.currentRoom) && t.type==='expense' && isSameBillingMonth(t.date, m)
   ).forEach(t => {
     const d = parseInt(t.date.split('-')[2]);
     const w = Math.min(Math.floor((d-1)/7), 4);
@@ -2850,7 +2878,7 @@ function renderCompareChart() {
 
   // 最大支出カテゴリ
   const txs = state.transactions.filter(t =>
-    Number(t.roomId)===Number(state.currentRoom) && t.type==='expense' && isSameMonth(t.date, m)
+    Number(t.roomId)===Number(state.currentRoom) && t.type==='expense' && isSameBillingMonth(t.date, m)
   );
   const catMap = {};
   txs.forEach(t => { catMap[t.category] = (catMap[t.category]||0) + t.amount; });
@@ -2968,7 +2996,7 @@ function deleteBudget(id) {
 function renderBudget() {
   const m = state.currentMonth;
   const txs = state.transactions.filter(t =>
-    Number(t.roomId) === Number(state.currentRoom) && t.type === 'expense' && isSameMonth(t.date, m)
+    Number(t.roomId) === Number(state.currentRoom) && t.type === 'expense' && isSameBillingMonth(t.date, m)
   );
   const setEl = (id, val, color) => {
     const el = document.getElementById(id);
@@ -3954,7 +3982,7 @@ function switchReportTab(tab) {
 function getMonthTxs(year, month) {
   const d = new Date(year, month, 1);
   return state.transactions.filter(t =>
-    Number(t.roomId) === Number(state.currentRoom) && isSameMonth(t.date, d)
+    Number(t.roomId) === Number(state.currentRoom) && isSameBillingMonth(t.date, d)
   );
 }
 
@@ -4216,7 +4244,7 @@ function exportExcel(type) {
   } else if (type === 'budget') {
     const m = state.currentMonth;
     const txs = state.transactions.filter(t=>
-      Number(t.roomId)===Number(state.currentRoom) && t.type==='expense' && isSameMonth(t.date,m)
+      Number(t.roomId)===Number(state.currentRoom) && t.type==='expense' && isSameBillingMonth(t.date,m)
     );
     const rows = [['カテゴリ','予算','使用額','残り','達成率(%)']];
     state.budgets.forEach(b => {
