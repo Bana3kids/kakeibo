@@ -2004,12 +2004,12 @@ const CLOSE_DAY = 5; // 締め日
 function getBillingMonth(dateStr) {
   const [y, m, d] = dateStr.split('-').map(Number);
   if (d <= CLOSE_DAY) {
-    // 締め日以内 → 当月扱い
-    return { year: y, month: m };
+    // 1〜5日 → 前月扱い（例：4/1〜4/5 → 3月分）
+    if (m === 1) return { year: y - 1, month: 12 };
+    return { year: y, month: m - 1 };
   } else {
-    // 締め日より後 → 翌月扱い
-    if (m === 12) return { year: y + 1, month: 1 };
-    return { year: y, month: m + 1 };
+    // 6日以降 → 当月扱い（例：3/6〜4/5 → 3月分）
+    return { year: y, month: m };
   }
 }
 
@@ -2053,15 +2053,15 @@ function updateDate() {
     `${now.getFullYear()}/${String(now.getMonth()+1).padStart(2,'0')}/${String(now.getDate()).padStart(2,'0')} (${days[now.getDay()]})`;
 }
 
-// 月表示（締め日ベース：前月6日〜当月5日）
+// 月表示（締め日ベース：当月6日〜翌月5日）
 function updateMonthDisplay() {
   const m = state.currentMonth;
   const year = m.getFullYear();
   const month = m.getMonth() + 1;
-  const prevMonth = month === 1 ? 12 : month - 1;
-  const prevYear = month === 1 ? year - 1 : year;
+  const nextMonth = month === 12 ? 1 : month + 1;
+  const nextYear = month === 12 ? year + 1 : year;
   document.getElementById('currentMonth').textContent =
-    year + '年' + month + '月（' + prevYear + '/' + String(prevMonth).padStart(2,'0') + '/6〜' + year + '/' + String(month).padStart(2,'0') + '/5）';
+    year + '年' + month + '月（' + year + '/' + String(month).padStart(2,'0') + '/6〜' + nextYear + '/' + String(nextMonth).padStart(2,'0') + '/5）';
 }
 
 function changeMonth(delta) {
