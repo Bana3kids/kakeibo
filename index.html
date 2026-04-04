@@ -846,6 +846,9 @@
     <div class="nav-item" onclick="setNav(this, 'graph')">
       <span class="nav-icon">📊</span>グラフ
     </div>
+    <div class="nav-item" onclick="setNav(this, 'budget')">
+      <span class="nav-icon">🎯</span>予算
+    </div>
     <div class="nav-item" onclick="setNav(this, 'income-goal')">
       <span class="nav-icon">⏱️</span>収入目標管理
     </div>
@@ -3201,12 +3204,16 @@ function saveBudget() {
   }
   closeModal('budgetModal');
   renderBudget();
+  mRenderBudget();
+  saveToFirestore();
 }
 
 function deleteBudget(id) {
   if (!confirm('この予算を削除しますか？')) return;
   state.budgets = state.budgets.filter(b => b.id !== id);
   renderBudget();
+  mRenderBudget();
+  saveToFirestore();
   showToast('予算を削除しました');
 }
 
@@ -4882,18 +4889,19 @@ document.querySelectorAll('.modal-overlay').forEach(overlay => {
     <div onclick="mChangeMonth(1)" style="width:32px;height:32px;border-radius:50%;background:#f1f5f9;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:14px;">▶</div>
   </div>
 
-  <!-- タブ -->
-  <div style="background:#fff;display:flex;border-bottom:2px solid #e2e8f0;">
-    <div id="mTab_cash" onclick="setMobileTab('cash')" style="flex:1;text-align:center;padding:10px 4px;font-size:13px;font-weight:600;color:#2563eb;border-bottom:2px solid #2563eb;margin-bottom:-2px;cursor:pointer;">💵 現金</div>
-    <div id="mTab_card" onclick="setMobileTab('card')" style="flex:1;text-align:center;padding:10px 4px;font-size:13px;font-weight:600;color:#94a3b8;border-bottom:2px solid transparent;margin-bottom:-2px;cursor:pointer;">💳 カード</div>
-    <div id="mTab_total" onclick="setMobileTab('total')" style="flex:1;text-align:center;padding:10px 4px;font-size:13px;font-weight:600;color:#94a3b8;border-bottom:2px solid transparent;margin-bottom:-2px;cursor:pointer;">🔀 合計</div>
+  <!-- タブ（現金/カード/合計/予算） -->
+  <div id="mTabBar" style="background:#fff;display:flex;border-bottom:2px solid #e2e8f0;">
+    <div id="mTab_cash" onclick="setMobileTab('cash')" style="flex:1;text-align:center;padding:10px 2px;font-size:12px;font-weight:600;color:#2563eb;border-bottom:2px solid #2563eb;margin-bottom:-2px;cursor:pointer;">💵 現金</div>
+    <div id="mTab_card" onclick="setMobileTab('card')" style="flex:1;text-align:center;padding:10px 2px;font-size:12px;font-weight:600;color:#94a3b8;border-bottom:2px solid transparent;margin-bottom:-2px;cursor:pointer;">💳 カード</div>
+    <div id="mTab_total" onclick="setMobileTab('total')" style="flex:1;text-align:center;padding:10px 2px;font-size:12px;font-weight:600;color:#94a3b8;border-bottom:2px solid transparent;margin-bottom:-2px;cursor:pointer;">🔀 合計</div>
+    <div id="mTab_budget" onclick="setMobileTab('budget')" style="flex:1;text-align:center;padding:10px 2px;font-size:12px;font-weight:600;color:#94a3b8;border-bottom:2px solid transparent;margin-bottom:-2px;cursor:pointer;">🎯 予算</div>
   </div>
 
   <!-- コンテンツ -->
   <div id="mContent" style="flex:1;overflow-y:auto;padding:12px 16px 24px;">
 
-    <!-- サマリーカード -->
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;">
+    <!-- サマリーカード（ホーム用） -->
+    <div id="mSummaryGrid" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;">
       <div style="background:#fff;border-radius:12px;padding:14px;box-shadow:0 1px 4px rgba(0,0,0,0.08);">
         <div style="font-size:10px;color:#94a3b8;margin-bottom:4px;">🟢 収入</div>
         <div id="mIncome" style="font-size:20px;font-weight:700;color:#10b981;">¥0</div>
@@ -4912,15 +4920,51 @@ document.querySelectorAll('.modal-overlay').forEach(overlay => {
       </div>
     </div>
 
-    <!-- 取引履歴 -->
-    <div style="background:#fff;border-radius:12px;box-shadow:0 1px 4px rgba(0,0,0,0.08);overflow:hidden;">
+    <!-- 取引履歴（ホーム用） -->
+    <div id="mPageHome" style="background:#fff;border-radius:12px;box-shadow:0 1px 4px rgba(0,0,0,0.08);overflow:hidden;">
       <div style="padding:12px 16px;border-bottom:1px solid #e2e8f0;font-size:14px;font-weight:700;color:#0f172a;">📝 取引履歴</div>
       <div id="mTxList" style="padding:0 4px;">
         <div style="text-align:center;color:#94a3b8;padding:32px 16px;font-size:13px;">データを読み込み中...</div>
       </div>
     </div>
 
+    <!-- ── 予算ページ（閲覧専用） ── -->
+    <div id="mPageBudget" style="display:none;">
+
+      <!-- 全体サマリー -->
+      <div style="background:linear-gradient(135deg,rgba(59,130,246,0.12),rgba(139,92,246,0.12));border:1px solid rgba(59,130,246,0.25);border-radius:16px;padding:16px;margin-bottom:14px;">
+        <div style="font-size:11px;color:#475569;margin-bottom:4px;">今月の予算合計</div>
+        <div id="mBudgetTotal" style="font-size:28px;font-weight:700;font-family:'Space Mono',monospace;color:#2563eb;margin-bottom:12px;">¥0</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
+          <div style="background:rgba(255,255,255,0.7);border-radius:10px;padding:10px;">
+            <div style="font-size:10px;color:#94a3b8;margin-bottom:2px;">使用済み</div>
+            <div id="mBudgetUsed" style="font-size:18px;font-weight:700;font-family:'Space Mono',monospace;color:#0f172a;">¥0</div>
+          </div>
+          <div style="background:rgba(255,255,255,0.7);border-radius:10px;padding:10px;">
+            <div style="font-size:10px;color:#94a3b8;margin-bottom:2px;">残り使える</div>
+            <div id="mBudgetRemain" style="font-size:18px;font-weight:700;font-family:'Space Mono',monospace;color:#10b981;">¥0</div>
+          </div>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+          <span style="font-size:11px;color:#475569;">全体消化率</span>
+          <div style="display:flex;align-items:center;gap:6px;">
+            <span id="mBudgetDaysLeft" style="font-size:10px;color:#94a3b8;"></span>
+            <span id="mBudgetPct" style="font-size:13px;font-weight:700;font-family:'Space Mono',monospace;color:#2563eb;">0%</span>
+          </div>
+        </div>
+        <div style="background:rgba(255,255,255,0.4);border-radius:999px;height:10px;overflow:hidden;">
+          <div id="mBudgetBar" style="height:100%;border-radius:999px;background:linear-gradient(90deg,#3b82f6,#10b981);width:0%;transition:width 0.8s ease;"></div>
+        </div>
+      </div>
+
+      <!-- カテゴリ別（閲覧のみ・編集ボタンなし） -->
+      <div style="font-size:13px;font-weight:700;color:#0f172a;margin-bottom:10px;">カテゴリ別予算</div>
+      <div id="mBudgetCards" style="display:flex;flex-direction:column;gap:10px;"></div>
+
+    </div>
+
   </div>
+
 </div>
 
 <script>
@@ -4930,7 +4974,6 @@ let mCurrentTab = 'cash';
 function initMobileUI() {
   mRenderMonth();
   mRenderAll();
-  // Firebase接続状態
   const dot = document.getElementById('mFbDot');
   if (dot && window._fbReady) dot.style.background = '#10b981';
 }
@@ -4938,7 +4981,11 @@ function initMobileUI() {
 function mChangeMonth(delta) {
   state.currentMonth = new Date(state.currentMonth.getFullYear(), state.currentMonth.getMonth() + delta, 1);
   mRenderMonth();
-  mRenderAll();
+  if (mCurrentTab === 'budget') {
+    mRenderBudget();
+  } else {
+    mRenderAll();
+  }
 }
 
 function mRenderMonth() {
@@ -4952,14 +4999,30 @@ function mRenderMonth() {
 
 function setMobileTab(tab) {
   mCurrentTab = tab;
-  ['cash','card','total'].forEach(t => {
+  const isBudget = tab === 'budget';
+
+  // タブの色切替（4タブ対応）
+  ['cash','card','total','budget'].forEach(t => {
     const el = document.getElementById('mTab_' + t);
     if (!el) return;
     const active = t === tab;
     el.style.color = active ? '#2563eb' : '#94a3b8';
     el.style.borderBottomColor = active ? '#2563eb' : 'transparent';
   });
-  mRenderAll();
+
+  // ページ切替
+  const summaryGrid = document.getElementById('mSummaryGrid');
+  const homeEl = document.getElementById('mPageHome');
+  const budgetEl = document.getElementById('mPageBudget');
+  if (summaryGrid) summaryGrid.style.display = isBudget ? 'none' : 'grid';
+  if (homeEl) homeEl.style.display = isBudget ? 'none' : '';
+  if (budgetEl) budgetEl.style.display = isBudget ? '' : 'none';
+
+  if (isBudget) {
+    mRenderBudget();
+  } else {
+    mRenderAll();
+  }
 }
 
 function mRenderAll() {
@@ -5057,11 +5120,96 @@ window.renderAll = function() {
   _origRenderAll();
   if (document.getElementById('mobileApp') && document.getElementById('mobileApp').style.display !== 'none') {
     mRenderMonth();
-    mRenderAll();
+    if (mCurrentTab === 'budget') {
+      mRenderBudget();
+    } else {
+      mRenderAll();
+    }
     const dot = document.getElementById('mFbDot');
     if (dot && window._fbReady) dot.style.background = '#10b981';
   }
 };
+
+function mRenderBudget() {
+  const m = state.currentMonth;
+  // 全ルームの支出を集計（予算は全体集計）
+  const txs = state.transactions.filter(t => t.type === 'expense' && isSameBillingMonth(t.date, m));
+
+  const totalBudget = state.budgets.reduce((s, b) => s + b.amount, 0);
+  const totalUsed = txs.reduce((s, t) => s + t.amount, 0);
+  const totalRemain = totalBudget - totalUsed;
+  const pct = totalBudget > 0 ? Math.min(Math.round(totalUsed / totalBudget * 100), 100) : 0;
+
+  const s = (id, val, color) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.textContent = val;
+    if (color) el.style.color = color;
+  };
+
+  s('mBudgetTotal', '¥' + totalBudget.toLocaleString());
+  s('mBudgetUsed', '¥' + totalUsed.toLocaleString());
+  s('mBudgetRemain',
+    (totalRemain >= 0 ? '¥' : '-¥') + Math.abs(totalRemain).toLocaleString(),
+    totalRemain >= 0 ? '#10b981' : '#ef4444'
+  );
+  s('mBudgetPct', pct + '%', pct >= 90 ? '#ef4444' : pct >= 70 ? '#f59e0b' : '#2563eb');
+
+  const bar = document.getElementById('mBudgetBar');
+  if (bar) {
+    bar.style.width = pct + '%';
+    bar.style.background = pct >= 90 ? 'linear-gradient(90deg,#ef4444,#f97316)'
+      : pct >= 70 ? 'linear-gradient(90deg,#f59e0b,#ef4444)'
+      : 'linear-gradient(90deg,#3b82f6,#10b981)';
+  }
+
+  const today = new Date();
+  const lastDay = new Date(m.getFullYear(), m.getMonth()+1, 0).getDate();
+  const daysLeft = m.getMonth() === today.getMonth() && m.getFullYear() === today.getFullYear()
+    ? lastDay - today.getDate() : 0;
+  s('mBudgetDaysLeft', daysLeft > 0 ? `残り${daysLeft}日` : '');
+
+  const cardsEl = document.getElementById('mBudgetCards');
+  if (!cardsEl) return;
+
+  if (state.budgets.length === 0) {
+    cardsEl.innerHTML = `<div style="background:#fff;border-radius:14px;padding:40px 20px;text-align:center;box-shadow:0 1px 4px rgba(0,0,0,0.08);">
+      <div style="font-size:40px;margin-bottom:12px;">🎯</div>
+      <div style="color:#94a3b8;font-size:13px;">予算が設定されていません<br>「＋ 予算を設定」から追加してください</div>
+    </div>`;
+    return;
+  }
+
+  cardsEl.innerHTML = state.budgets.map(b => {
+    const used = txs.filter(t => t.category === b.name).reduce((s,t) => s+t.amount, 0);
+    const remain = b.amount - used;
+    const p = b.amount > 0 ? Math.min(Math.round(used / b.amount * 100), 100) : 0;
+    const over = remain < 0;
+    const barColor = p >= 90 ? '#ef4444' : p >= 70 ? '#f59e0b' : b.color;
+    const dailyRemain = daysLeft > 0 && remain > 0 ? Math.floor(remain / daysLeft) : null;
+
+    return `<div style="background:#fff;border-radius:14px;padding:14px;box-shadow:0 1px 4px rgba(0,0,0,0.08);border:1px solid ${over?'rgba(239,68,68,0.3)':b.color+'33'};">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div style="width:36px;height:36px;border-radius:10px;background:${b.color}22;display:flex;align-items:center;justify-content:center;font-size:20px;">${b.icon}</div>
+          <div>
+            <div style="font-size:13px;font-weight:700;color:#0f172a;">${b.name}</div>
+            <div style="font-size:10px;color:#94a3b8;">予算 ¥${b.amount.toLocaleString()}</div>
+          </div>
+        </div>
+        <div style="text-align:right;">
+          <div style="font-size:10px;color:#94a3b8;margin-bottom:1px;">${over?'⚠️ 超過':'残り'}</div>
+          <div style="font-size:18px;font-weight:700;font-family:'Space Mono',monospace;color:${over?'#ef4444':'#10b981'};">${over?'-':''}¥${Math.abs(remain).toLocaleString()}</div>
+          ${dailyRemain?`<div style="font-size:9px;color:#94a3b8;">1日 ¥${dailyRemain.toLocaleString()}</div>`:''}
+        </div>
+      </div>
+      <div style="background:#f1f5f9;border-radius:999px;height:8px;overflow:hidden;margin-bottom:4px;">
+        <div style="height:100%;border-radius:999px;background:${barColor};width:${p}%;transition:width 0.6s;"></div>
+      </div>
+      <div style="text-align:right;font-size:10px;color:${barColor};font-weight:600;">${p}% 使用</div>
+    </div>`;
+  }).join('');
+}
 
 // スマホUI初期化 - JSで確実に切り替え
 function checkMobileDisplay() {
