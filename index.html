@@ -1681,6 +1681,43 @@
 </div>
 
 
+<!-- カテゴリ編集モーダル -->
+<div class="modal-overlay" id="editCategoryModal">
+  <div class="modal" style="width:380px;">
+    <div class="modal-title">✏️ カテゴリを編集</div>
+    <div class="form-group">
+      <label class="form-label">カテゴリ名</label>
+      <input class="form-input" id="editCatName" placeholder="例：食費">
+    </div>
+    <div class="form-group">
+      <label class="form-label">アイコン</label>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div id="editCatEmojiPreview" style="width:44px;height:44px;border-radius:10px;background:var(--bg-secondary);border:2px solid var(--blue);display:flex;align-items:center;justify-content:center;font-size:22px;">📌</div>
+        <input id="editCatIcon" maxlength="2" style="width:52px;height:36px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:8px;color:var(--text-primary);font-size:18px;text-align:center;outline:none;" oninput="document.getElementById('editCatEmojiPreview').textContent=this.value||'📌'">
+        <span style="font-size:12px;color:var(--text-muted);">絵文字を直接入力</span>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">カラー</label>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <div class="editcat-color color-option selected" data-color="#3b82f6" onclick="selectEditCatColor(this)" style="background:#3b82f6;"></div>
+        <div class="editcat-color color-option" data-color="#10b981" onclick="selectEditCatColor(this)" style="background:#10b981;"></div>
+        <div class="editcat-color color-option" data-color="#f59e0b" onclick="selectEditCatColor(this)" style="background:#f59e0b;"></div>
+        <div class="editcat-color color-option" data-color="#ef4444" onclick="selectEditCatColor(this)" style="background:#ef4444;"></div>
+        <div class="editcat-color color-option" data-color="#8b5cf6" onclick="selectEditCatColor(this)" style="background:#8b5cf6;"></div>
+        <div class="editcat-color color-option" data-color="#ec4899" onclick="selectEditCatColor(this)" style="background:#ec4899;"></div>
+        <div class="editcat-color color-option" data-color="#f97316" onclick="selectEditCatColor(this)" style="background:#f97316;"></div>
+        <div class="editcat-color color-option" data-color="#06b6d4" onclick="selectEditCatColor(this)" style="background:#06b6d4;"></div>
+        <div class="editcat-color color-option" data-color="#94a3b8" onclick="selectEditCatColor(this)" style="background:#94a3b8;"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeModal('editCategoryModal')">キャンセル</button>
+      <button class="btn-primary-full" onclick="saveCategoryEdit()">更新する</button>
+    </div>
+  </div>
+</div>
+
 <!-- 貯蓄目標モーダル -->
 <div class="modal-overlay" id="savingsModal">
   <div class="modal" style="width:360px;">
@@ -2418,22 +2455,110 @@ function setType(type) {
 function renderCategoryPicker() {
   const cats = categories[currentType];
   const picker = document.getElementById('categoryPicker');
+  const isSelected = i => selectedCategory === i;
+
   picker.innerHTML = cats.map((c, i) => `
-    <div onclick="selectCategory(${i})" id="cat_${i}"
-      style="display:flex;align-items:center;gap:6px;padding:7px 12px;border-radius:20px;
-             border:1px solid ${selectedCategory === i ? c.color : 'var(--border)'};
-             background:${selectedCategory === i ? c.color + '22' : 'var(--bg-secondary)'};
-             cursor:pointer;transition:all 0.2s;font-size:12px;color:${selectedCategory === i ? c.color : 'var(--text-secondary)'};">
-      <span>${c.icon}</span><span>${c.name}</span>
+    <div id="cat_${i}" style="display:flex;align-items:center;border-radius:20px;
+           border:1px solid ${isSelected(i) ? c.color : 'var(--border)'};
+           background:${isSelected(i) ? c.color + '22' : 'var(--bg-secondary)'};
+           transition:all 0.2s;font-size:12px;overflow:hidden;">
+      <div onclick="selectCategory(${i})"
+        style="display:flex;align-items:center;gap:6px;padding:7px 10px;
+               cursor:pointer;flex:1;color:${isSelected(i) ? c.color : 'var(--text-secondary)'};">
+        <span>${c.icon}</span><span>${c.name}</span>
+      </div>
+      <div style="display:flex;align-items:center;border-left:1px solid ${isSelected(i) ? c.color+'44' : 'var(--border)'};">
+        <span onclick="openEditCategory('${currentType}',${i})" title="編集"
+          style="padding:5px 7px;cursor:pointer;color:var(--text-muted);font-size:11px;
+                 transition:color 0.15s;" onmouseover="this.style.color='var(--blue-light)'" onmouseout="this.style.color='var(--text-muted)'">✏️</span>
+        <span onclick="deleteCategoryFromPicker('${currentType}',${i})" title="削除"
+          style="padding:5px 7px;cursor:pointer;color:var(--text-muted);font-size:11px;
+                 transition:color 0.15s;" onmouseover="this.style.color='#ef4444'" onmouseout="this.style.color='var(--text-muted)'">🗑</span>
+      </div>
     </div>
   `).join('') + `
-    <div onclick="openAddCategory()" 
+    <div onclick="openAddCategory()"
       style="display:flex;align-items:center;gap:6px;padding:7px 12px;border-radius:20px;
              border:1px dashed var(--border);background:transparent;
              cursor:pointer;transition:all 0.2s;font-size:12px;color:var(--text-muted);">
       <span>＋</span><span>追加</span>
     </div>
   `;
+}
+
+function deleteCategoryFromPicker(type, index) {
+  const cat = state.categories[type][index];
+  if (!cat) return;
+  if (!confirm(`「${cat.icon} ${cat.name}」を削除しますか？\n※このカテゴリの取引データは残ります`)) return;
+  state.categories[type].splice(index, 1);
+  // 削除したカテゴリの予算も削除
+  state.budgets = state.budgets.filter(b => b.name !== cat.name);
+  // 選択中インデックスをリセット
+  if (selectedCategory === index) selectedCategory = null;
+  else if (selectedCategory > index) selectedCategory--;
+  renderCategoryPicker();
+  renderBudget();
+  saveAutoBackup();
+  showToast(`「${cat.name}」を削除しました`);
+}
+
+function deleteCategoryFromPicker(type, index) {
+  const cat = state.categories[type][index];
+  if (!cat) return;
+  if (!confirm(`「${cat.icon} ${cat.name}」を削除しますか？\n※このカテゴリの取引データは残ります`)) return;
+  state.categories[type].splice(index, 1);
+  // 削除したカテゴリの予算も削除
+  state.budgets = state.budgets.filter(b => b.name !== cat.name);
+  // 選択中インデックスをリセット
+  if (selectedCategory === index) selectedCategory = null;
+  else if (selectedCategory > index) selectedCategory--;
+  renderCategoryPicker();
+  renderBudget();
+  saveAutoBackup();
+  showToast(`「${cat.name}」を削除しました`);
+}
+
+// カテゴリ編集モーダル用
+let editCatType = 'expense';
+let editCatIndex = -1;
+let editCatColor = '#3b82f6';
+
+function openEditCategory(type, index) {
+  editCatType = type;
+  editCatIndex = index;
+  const cat = state.categories[type][index];
+  if (!cat) return;
+  document.getElementById('editCatName').value = cat.name;
+  document.getElementById('editCatIcon').value = cat.icon;
+  document.getElementById('editCatEmojiPreview').textContent = cat.icon;
+  editCatColor = cat.color;
+  document.querySelectorAll('.editcat-color').forEach(el => {
+    el.classList.toggle('selected', el.dataset.color === cat.color);
+  });
+  document.getElementById('editCategoryModal').classList.add('show');
+}
+
+function selectEditCatColor(el) {
+  document.querySelectorAll('.editcat-color').forEach(e => e.classList.remove('selected'));
+  el.classList.add('selected');
+  editCatColor = el.dataset.color;
+}
+
+function saveCategoryEdit() {
+  const name = document.getElementById('editCatName').value.trim();
+  const icon = document.getElementById('editCatIcon').value.trim() || '📌';
+  if (!name) { showToast('カテゴリ名を入力してください'); return; }
+  const oldName = state.categories[editCatType][editCatIndex]?.name;
+  state.categories[editCatType][editCatIndex] = { name, icon, color: editCatColor };
+  if (oldName && oldName !== name) {
+    state.budgets.forEach(b => { if (b.name === oldName) { b.name = name; b.icon = icon; b.color = editCatColor; } });
+    state.transactions.forEach(t => { if (t.category === oldName) t.category = name; });
+  }
+  closeModal('editCategoryModal');
+  renderCategoryPicker();
+  renderBudget();
+  renderAll();
+  showToast(`「${icon} ${name}」を更新しました`);
 }
 
 function selectCategory(i) {
@@ -3194,6 +3319,12 @@ function saveBudget() {
   if (!name) { showToast('カテゴリを選択または入力してください'); return; }
   if (!amount || amount <= 0) { showToast('予算金額を入力してください'); return; }
 
+  // 手入力カテゴリが state.categories.expense に存在しない場合は自動追加
+  const exists = state.categories.expense.some(c => c.name === name);
+  if (!exists) {
+    state.categories.expense.push({ name, icon, color });
+  }
+
   if (editingBudgetId !== null) {
     const idx = state.budgets.findIndex(b => b.id === editingBudgetId);
     if (idx >= 0) state.budgets[idx] = { ...state.budgets[idx], name, icon, color, amount };
@@ -3339,9 +3470,6 @@ function renderBudget() {
     }
   }
 }
-
-
-// ─── Step 6: 貯蓄・ローン・サブスク ───
 
 // ── 貯蓄目標 ──
 let editingSavId = null;
