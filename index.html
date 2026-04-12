@@ -1780,6 +1780,41 @@
   </div>
 </div>
 
+<!-- ローン支払い記録モーダル -->
+<div class="modal-overlay" id="loanPaymentModal">
+  <div class="modal" style="width:360px;">
+    <div class="modal-title" id="loanPaymentModalTitle">✅ 支払いを記録</div>
+    <div class="form-group">
+      <label class="form-label">支払日</label>
+      <input class="form-input" id="loanPayDate" type="date">
+    </div>
+    <div class="form-group">
+      <label class="form-label">支払金額（円）</label>
+      <input class="form-input" id="loanPayAmount" type="number" placeholder="例：50000" min="0"
+        style="font-size:18px;font-family:'Space Mono',monospace;text-align:right;">
+    </div>
+    <div class="form-group">
+      <label class="form-label">メモ（任意）</label>
+      <input class="form-input" id="loanPayMemo" placeholder="例：2026年4月分">
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeModal('loanPaymentModal')">キャンセル</button>
+      <button class="btn-primary-full" onclick="saveLoanPayment()">記録する</button>
+    </div>
+  </div>
+</div>
+
+<!-- ローン支払い履歴モーダル -->
+<div class="modal-overlay" id="loanHistoryModal">
+  <div class="modal" style="width:420px;">
+    <div class="modal-title" id="loanHistoryTitle">📋 支払い履歴</div>
+    <div id="loanHistoryList" style="max-height:60vh;overflow-y:auto;"></div>
+    <div class="modal-footer">
+      <button class="btn-primary-full" onclick="closeModal('loanHistoryModal')">閉じる</button>
+    </div>
+  </div>
+</div>
+
 <!-- サブスクモーダル -->
 <div class="modal-overlay" id="subModal">
   <div class="modal" style="width:360px;">
@@ -3609,33 +3644,85 @@ function deleteLoan(id) {
   renderLoans(); saveAutoBackup(); showToast('削除しました');
 }
 
-// 支払いを記録（残り回数を1減らす）
-function recordLoanPayment(id) {
-  const idx = state.loans.findIndex(l => l.id === id);
-  if (idx < 0) return;
-  const l = state.loans[idx];
-  if (l.remain <= 0) { showToast('すでに完済済みです'); return; }
-  const today = new Date().toISOString().slice(0, 10);
-  if (!l.payments) l.payments = [];
-  l.payments.push({ date: today, amount: l.monthly });
-  l.remain -= 1;
-  renderLoans();
-  saveAutoBackup();
-  showToast(`✅ 支払いを記録しました（残り ${l.remain} 回）`);
+// 支払い記録モーダルを開く
+let loanPaymentTargetId = null;
+function openLoanPaymentModal(id) {
+  loanPaymentTargetId = id;
+  const l = state.loans.find(l => l.id === id);
+  if (!l) return;
+  document.getElementById('loanPaymentModalTitle').textContent = `✅ 支払いを記録 — ${l.name}`;
+  document.getElementById('loanPayDate').value = new Date().toISOString().slice(0, 10);
+  document.getElementById('loanPayAmount').value = l.monthly || '';
+  document.getElementById('loanPayMemo').value = '';
+  document.getElementById('loanPaymentModal').classList.add('show');
 }
 
-// 最後の支払いを取り消す
-function undoLoanPayment(id) {
-  const idx = state.loans.findIndex(l => l.id === id);
+function saveLoanPayment() {
+  const idx = state.loans.findIndex(l => l.id === loanPaymentTargetId);
   if (idx < 0) return;
   const l = state.loans[idx];
-  if (!l.payments || l.payments.length === 0) { showToast('取り消せる支払いがありません'); return; }
-  if (!confirm('最後の支払い記録を取り消しますか？')) return;
-  l.payments.pop();
-  l.remain += 1;
+  const date = document.getElementById('loanPayDate').value;
+  const amount = parseInt(document.getElementById('loanPayAmount').value) || 0;
+  const memo = document.getElementById('loanPayMemo').value.trim();
+  if (!date) { showToast('支払日を入力してください'); return; }
+  if (!amount || amount <= 0) { showToast('支払金額を入力してください'); return; }
+  if (!l.payments) l.payments = [];
+  l.payments.push({ date, amount, memo });
+  // 日付順にソート
+  l.payments.sort((a, b) => a.date.localeCompare(b.date));
+  l.remain = Math.max(0, l.remain - 1);
+  closeModal('loanPaymentModal');
   renderLoans();
   saveAutoBackup();
-  showToast('支払いを取り消しました');
+  showToast(`✅ ${date} の支払いを記録しました（残り ${l.remain} 回）`);
+}
+
+// 支払い履歴モーダルを開く
+function openLoanHistory(id) {
+  const l = state.loans.find(l => l.id === id);
+  if (!l) return;
+  document.getElementById('loanHistoryTitle').textContent = `📋 支払い履歴 — ${l.name}`;
+  const payments = [...(l.payments || [])].reverse();
+  const listEl = document.getElementById('loanHistoryList');
+  if (payments.length === 0) {
+    listEl.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:30px;font-size:13px;">まだ支払い記録がありません</div>';
+  } else {
+    const total = payments.reduce((s, p) => s + p.amount, 0);
+    listEl.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0 14px;border-bottom:2px solid var(--border);margin-bottom:8px;">
+        <span style="font-size:12px;color:var(--text-muted);">合計 ${payments.length} 回</span>
+        <span style="font-size:15px;font-weight:700;color:#10b981;">累計 ¥${total.toLocaleString()}</span>
+      </div>
+      ${payments.map((p, i) => `
+        <div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);">
+          <div style="width:32px;height:32px;border-radius:8px;background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.3);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#10b981;flex-shrink:0;">${payments.length - i}</div>
+          <div style="flex:1;">
+            <div style="font-size:13px;font-weight:600;color:var(--text-primary);">${p.date}</div>
+            ${p.memo ? `<div style="font-size:11px;color:var(--text-muted);">${p.memo}</div>` : ''}
+          </div>
+          <div style="text-align:right;flex-shrink:0;">
+            <div style="font-size:14px;font-weight:700;color:#10b981;">-¥${p.amount.toLocaleString()}</div>
+          </div>
+          <button onclick="deleteLoanPayment(${id}, ${payments.length - 1 - i})"
+            style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);border-radius:6px;padding:4px 8px;color:#dc2626;cursor:pointer;font-size:11px;flex-shrink:0;">🗑</button>
+        </div>`).join('')}`;
+  }
+  document.getElementById('loanHistoryModal').classList.add('show');
+}
+
+// 支払い記録を1件削除
+function deleteLoanPayment(loanId, index) {
+  if (!confirm('この支払い記録を削除しますか？\n（残り返済回数が1増えます）')) return;
+  const l = state.loans.find(l => l.id === loanId);
+  if (!l || !l.payments) return;
+  // reverseして表示しているのでindexを逆算
+  const realIndex = l.payments.length - 1 - index;
+  l.payments.splice(realIndex, 1);
+  l.remain += 1;
+  saveAutoBackup();
+  renderLoans();
+  openLoanHistory(loanId); // 履歴モーダルを更新
+  showToast('支払い記録を削除しました');
 }
 
 function renderLoans() {
@@ -3719,15 +3806,19 @@ function renderLoans() {
       <!-- 支払いボタン -->
       ${!isFinished ? `
       <div style="display:flex;gap:8px;">
-        <button onclick="recordLoanPayment(${l.id})"
+        <button onclick="openLoanPaymentModal(${l.id})"
           style="flex:1;padding:10px;background:linear-gradient(135deg,#10b981,#3b82f6);border:none;border-radius:10px;color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;">
-          ✅ 今月の支払いを記録（¥${l.monthly.toLocaleString()}）
+          ✅ 支払いを記録する
         </button>
-        ${paidCount > 0 ? `<button onclick="undoLoanPayment(${l.id})"
-          style="padding:10px 14px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:12px;cursor:pointer;font-family:inherit;" title="最後の支払いを取り消す">↩️</button>` : ''}
+        ${paidCount > 0 ? `<button onclick="openLoanHistory(${l.id})"
+          style="padding:10px 14px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:10px;color:var(--text-secondary);font-size:12px;cursor:pointer;font-family:inherit;font-weight:600;" title="支払い履歴を見る">📋 履歴</button>` : ''}
       </div>` : `
-      <div style="text-align:center;padding:8px;background:rgba(16,185,129,0.1);border-radius:10px;color:#10b981;font-size:13px;font-weight:600;">
-        🎉 おめでとうございます！完済しました
+      <div style="display:flex;gap:8px;">
+        <div style="flex:1;text-align:center;padding:10px;background:rgba(16,185,129,0.1);border-radius:10px;color:#10b981;font-size:13px;font-weight:600;">
+          🎉 おめでとうございます！完済しました
+        </div>
+        ${paidCount > 0 ? `<button onclick="openLoanHistory(${l.id})"
+          style="padding:10px 14px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:10px;color:var(--text-secondary);font-size:12px;cursor:pointer;font-family:inherit;font-weight:600;">📋 履歴</button>` : ''}
       </div>`}
 
       ${historyHTML}
