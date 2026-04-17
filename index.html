@@ -1681,43 +1681,6 @@
 </div>
 
 
-<!-- カテゴリ編集モーダル -->
-<div class="modal-overlay" id="editCategoryModal">
-  <div class="modal" style="width:380px;">
-    <div class="modal-title">✏️ カテゴリを編集</div>
-    <div class="form-group">
-      <label class="form-label">カテゴリ名</label>
-      <input class="form-input" id="editCatName" placeholder="例：食費">
-    </div>
-    <div class="form-group">
-      <label class="form-label">アイコン</label>
-      <div style="display:flex;align-items:center;gap:10px;">
-        <div id="editCatEmojiPreview" style="width:44px;height:44px;border-radius:10px;background:var(--bg-secondary);border:2px solid var(--blue);display:flex;align-items:center;justify-content:center;font-size:22px;">📌</div>
-        <input id="editCatIcon" maxlength="2" style="width:52px;height:36px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:8px;color:var(--text-primary);font-size:18px;text-align:center;outline:none;" oninput="document.getElementById('editCatEmojiPreview').textContent=this.value||'📌'">
-        <span style="font-size:12px;color:var(--text-muted);">絵文字を直接入力</span>
-      </div>
-    </div>
-    <div class="form-group">
-      <label class="form-label">カラー</label>
-      <div style="display:flex;gap:10px;flex-wrap:wrap;">
-        <div class="editcat-color color-option selected" data-color="#3b82f6" onclick="selectEditCatColor(this)" style="background:#3b82f6;"></div>
-        <div class="editcat-color color-option" data-color="#10b981" onclick="selectEditCatColor(this)" style="background:#10b981;"></div>
-        <div class="editcat-color color-option" data-color="#f59e0b" onclick="selectEditCatColor(this)" style="background:#f59e0b;"></div>
-        <div class="editcat-color color-option" data-color="#ef4444" onclick="selectEditCatColor(this)" style="background:#ef4444;"></div>
-        <div class="editcat-color color-option" data-color="#8b5cf6" onclick="selectEditCatColor(this)" style="background:#8b5cf6;"></div>
-        <div class="editcat-color color-option" data-color="#ec4899" onclick="selectEditCatColor(this)" style="background:#ec4899;"></div>
-        <div class="editcat-color color-option" data-color="#f97316" onclick="selectEditCatColor(this)" style="background:#f97316;"></div>
-        <div class="editcat-color color-option" data-color="#06b6d4" onclick="selectEditCatColor(this)" style="background:#06b6d4;"></div>
-        <div class="editcat-color color-option" data-color="#94a3b8" onclick="selectEditCatColor(this)" style="background:#94a3b8;"></div>
-      </div>
-    </div>
-    <div class="modal-footer">
-      <button class="btn-secondary" onclick="closeModal('editCategoryModal')">キャンセル</button>
-      <button class="btn-primary-full" onclick="saveCategoryEdit()">更新する</button>
-    </div>
-  </div>
-</div>
-
 <!-- 貯蓄目標モーダル -->
 <div class="modal-overlay" id="savingsModal">
   <div class="modal" style="width:360px;">
@@ -1776,41 +1739,6 @@
     <div class="modal-footer">
       <button class="btn-secondary" onclick="closeModal('loanModal')">キャンセル</button>
       <button class="btn-primary-full" id="loanSaveBtn" onclick="saveLoan()">保存する</button>
-    </div>
-  </div>
-</div>
-
-<!-- ローン支払い記録モーダル -->
-<div class="modal-overlay" id="loanPaymentModal">
-  <div class="modal" style="width:360px;">
-    <div class="modal-title" id="loanPaymentModalTitle">✅ 支払いを記録</div>
-    <div class="form-group">
-      <label class="form-label">支払日</label>
-      <input class="form-input" id="loanPayDate" type="date">
-    </div>
-    <div class="form-group">
-      <label class="form-label">支払金額（円）</label>
-      <input class="form-input" id="loanPayAmount" type="number" placeholder="例：50000" min="0"
-        style="font-size:18px;font-family:'Space Mono',monospace;text-align:right;">
-    </div>
-    <div class="form-group">
-      <label class="form-label">メモ（任意）</label>
-      <input class="form-input" id="loanPayMemo" placeholder="例：2026年4月分">
-    </div>
-    <div class="modal-footer">
-      <button class="btn-secondary" onclick="closeModal('loanPaymentModal')">キャンセル</button>
-      <button class="btn-primary-full" onclick="saveLoanPayment()">記録する</button>
-    </div>
-  </div>
-</div>
-
-<!-- ローン支払い履歴モーダル -->
-<div class="modal-overlay" id="loanHistoryModal">
-  <div class="modal" style="width:420px;">
-    <div class="modal-title" id="loanHistoryTitle">📋 支払い履歴</div>
-    <div id="loanHistoryList" style="max-height:60vh;overflow-y:auto;"></div>
-    <div class="modal-footer">
-      <button class="btn-primary-full" onclick="closeModal('loanHistoryModal')">閉じる</button>
     </div>
   </div>
 </div>
@@ -2490,110 +2418,22 @@ function setType(type) {
 function renderCategoryPicker() {
   const cats = categories[currentType];
   const picker = document.getElementById('categoryPicker');
-  const isSelected = i => selectedCategory === i;
-
   picker.innerHTML = cats.map((c, i) => `
-    <div id="cat_${i}" style="display:flex;align-items:center;border-radius:20px;
-           border:1px solid ${isSelected(i) ? c.color : 'var(--border)'};
-           background:${isSelected(i) ? c.color + '22' : 'var(--bg-secondary)'};
-           transition:all 0.2s;font-size:12px;overflow:hidden;">
-      <div onclick="selectCategory(${i})"
-        style="display:flex;align-items:center;gap:6px;padding:7px 10px;
-               cursor:pointer;flex:1;color:${isSelected(i) ? c.color : 'var(--text-secondary)'};">
-        <span>${c.icon}</span><span>${c.name}</span>
-      </div>
-      <div style="display:flex;align-items:center;border-left:1px solid ${isSelected(i) ? c.color+'44' : 'var(--border)'};">
-        <span onclick="openEditCategory('${currentType}',${i})" title="編集"
-          style="padding:5px 7px;cursor:pointer;color:var(--text-muted);font-size:11px;
-                 transition:color 0.15s;" onmouseover="this.style.color='var(--blue-light)'" onmouseout="this.style.color='var(--text-muted)'">✏️</span>
-        <span onclick="deleteCategoryFromPicker('${currentType}',${i})" title="削除"
-          style="padding:5px 7px;cursor:pointer;color:var(--text-muted);font-size:11px;
-                 transition:color 0.15s;" onmouseover="this.style.color='#ef4444'" onmouseout="this.style.color='var(--text-muted)'">🗑</span>
-      </div>
+    <div onclick="selectCategory(${i})" id="cat_${i}"
+      style="display:flex;align-items:center;gap:6px;padding:7px 12px;border-radius:20px;
+             border:1px solid ${selectedCategory === i ? c.color : 'var(--border)'};
+             background:${selectedCategory === i ? c.color + '22' : 'var(--bg-secondary)'};
+             cursor:pointer;transition:all 0.2s;font-size:12px;color:${selectedCategory === i ? c.color : 'var(--text-secondary)'};">
+      <span>${c.icon}</span><span>${c.name}</span>
     </div>
   `).join('') + `
-    <div onclick="openAddCategory()"
+    <div onclick="openAddCategory()" 
       style="display:flex;align-items:center;gap:6px;padding:7px 12px;border-radius:20px;
              border:1px dashed var(--border);background:transparent;
              cursor:pointer;transition:all 0.2s;font-size:12px;color:var(--text-muted);">
       <span>＋</span><span>追加</span>
     </div>
   `;
-}
-
-function deleteCategoryFromPicker(type, index) {
-  const cat = state.categories[type][index];
-  if (!cat) return;
-  if (!confirm(`「${cat.icon} ${cat.name}」を削除しますか？\n※このカテゴリの取引データは残ります`)) return;
-  state.categories[type].splice(index, 1);
-  // 削除したカテゴリの予算も削除
-  state.budgets = state.budgets.filter(b => b.name !== cat.name);
-  // 選択中インデックスをリセット
-  if (selectedCategory === index) selectedCategory = null;
-  else if (selectedCategory > index) selectedCategory--;
-  renderCategoryPicker();
-  renderBudget();
-  saveAutoBackup();
-  showToast(`「${cat.name}」を削除しました`);
-}
-
-function deleteCategoryFromPicker(type, index) {
-  const cat = state.categories[type][index];
-  if (!cat) return;
-  if (!confirm(`「${cat.icon} ${cat.name}」を削除しますか？\n※このカテゴリの取引データは残ります`)) return;
-  state.categories[type].splice(index, 1);
-  // 削除したカテゴリの予算も削除
-  state.budgets = state.budgets.filter(b => b.name !== cat.name);
-  // 選択中インデックスをリセット
-  if (selectedCategory === index) selectedCategory = null;
-  else if (selectedCategory > index) selectedCategory--;
-  renderCategoryPicker();
-  renderBudget();
-  saveAutoBackup();
-  showToast(`「${cat.name}」を削除しました`);
-}
-
-// カテゴリ編集モーダル用
-let editCatType = 'expense';
-let editCatIndex = -1;
-let editCatColor = '#3b82f6';
-
-function openEditCategory(type, index) {
-  editCatType = type;
-  editCatIndex = index;
-  const cat = state.categories[type][index];
-  if (!cat) return;
-  document.getElementById('editCatName').value = cat.name;
-  document.getElementById('editCatIcon').value = cat.icon;
-  document.getElementById('editCatEmojiPreview').textContent = cat.icon;
-  editCatColor = cat.color;
-  document.querySelectorAll('.editcat-color').forEach(el => {
-    el.classList.toggle('selected', el.dataset.color === cat.color);
-  });
-  document.getElementById('editCategoryModal').classList.add('show');
-}
-
-function selectEditCatColor(el) {
-  document.querySelectorAll('.editcat-color').forEach(e => e.classList.remove('selected'));
-  el.classList.add('selected');
-  editCatColor = el.dataset.color;
-}
-
-function saveCategoryEdit() {
-  const name = document.getElementById('editCatName').value.trim();
-  const icon = document.getElementById('editCatIcon').value.trim() || '📌';
-  if (!name) { showToast('カテゴリ名を入力してください'); return; }
-  const oldName = state.categories[editCatType][editCatIndex]?.name;
-  state.categories[editCatType][editCatIndex] = { name, icon, color: editCatColor };
-  if (oldName && oldName !== name) {
-    state.budgets.forEach(b => { if (b.name === oldName) { b.name = name; b.icon = icon; b.color = editCatColor; } });
-    state.transactions.forEach(t => { if (t.category === oldName) t.category = name; });
-  }
-  closeModal('editCategoryModal');
-  renderCategoryPicker();
-  renderBudget();
-  renderAll();
-  showToast(`「${icon} ${name}」を更新しました`);
 }
 
 function selectCategory(i) {
@@ -3354,12 +3194,6 @@ function saveBudget() {
   if (!name) { showToast('カテゴリを選択または入力してください'); return; }
   if (!amount || amount <= 0) { showToast('予算金額を入力してください'); return; }
 
-  // 手入力カテゴリが state.categories.expense に存在しない場合は自動追加
-  const exists = state.categories.expense.some(c => c.name === name);
-  if (!exists) {
-    state.categories.expense.push({ name, icon, color });
-  }
-
   if (editingBudgetId !== null) {
     const idx = state.budgets.findIndex(b => b.id === editingBudgetId);
     if (idx >= 0) state.budgets[idx] = { ...state.budgets[idx], name, icon, color, amount };
@@ -3385,8 +3219,9 @@ function deleteBudget(id) {
 
 function renderBudget() {
   const m = state.currentMonth;
+  // 全ルームの支出を集計（収支サマリーと同じ基準）
   const txs = state.transactions.filter(t =>
-    Number(t.roomId) === Number(state.currentRoom) && t.type === 'expense' && isSameBillingMonth(t.date, m)
+    t.type === 'expense' && isSameBillingMonth(t.date, m)
   );
   const setEl = (id, val, color) => {
     const el = document.getElementById(id);
@@ -3505,6 +3340,9 @@ function renderBudget() {
     }
   }
 }
+
+
+// ─── Step 6: 貯蓄・ローン・サブスク ───
 
 // ── 貯蓄目標 ──
 let editingSavId = null;
@@ -3629,102 +3467,17 @@ function saveLoan() {
     if (idx >= 0) state.loans[idx] = { ...state.loans[idx], name, total, monthly, remain, icon };
     showToast('ローンを更新しました');
   } else {
-    // 新規：支払い履歴を空で初期化
-    state.loans.push({ id: Date.now(), name, total, monthly, remain, icon, payments: [] });
+    state.loans.push({ id: Date.now(), name, total, monthly, remain, icon });
     showToast(`「${icon} ${name}」を追加しました`);
   }
   closeModal('loanModal');
   renderLoans();
-  saveAutoBackup();
 }
-
 function deleteLoan(id) {
   if (!confirm('このローンを削除しますか？')) return;
   state.loans = state.loans.filter(l => l.id !== id);
-  renderLoans(); saveAutoBackup(); showToast('削除しました');
+  renderLoans(); showToast('削除しました');
 }
-
-// 支払い記録モーダルを開く
-let loanPaymentTargetId = null;
-function openLoanPaymentModal(id) {
-  loanPaymentTargetId = id;
-  const l = state.loans.find(l => l.id === id);
-  if (!l) return;
-  document.getElementById('loanPaymentModalTitle').textContent = `✅ 支払いを記録 — ${l.name}`;
-  document.getElementById('loanPayDate').value = new Date().toISOString().slice(0, 10);
-  document.getElementById('loanPayAmount').value = l.monthly || '';
-  document.getElementById('loanPayMemo').value = '';
-  document.getElementById('loanPaymentModal').classList.add('show');
-}
-
-function saveLoanPayment() {
-  const idx = state.loans.findIndex(l => l.id === loanPaymentTargetId);
-  if (idx < 0) return;
-  const l = state.loans[idx];
-  const date = document.getElementById('loanPayDate').value;
-  const amount = parseInt(document.getElementById('loanPayAmount').value) || 0;
-  const memo = document.getElementById('loanPayMemo').value.trim();
-  if (!date) { showToast('支払日を入力してください'); return; }
-  if (!amount || amount <= 0) { showToast('支払金額を入力してください'); return; }
-  if (!l.payments) l.payments = [];
-  l.payments.push({ date, amount, memo });
-  // 日付順にソート
-  l.payments.sort((a, b) => a.date.localeCompare(b.date));
-  l.remain = Math.max(0, l.remain - 1);
-  closeModal('loanPaymentModal');
-  renderLoans();
-  saveAutoBackup();
-  showToast(`✅ ${date} の支払いを記録しました（残り ${l.remain} 回）`);
-}
-
-// 支払い履歴モーダルを開く
-function openLoanHistory(id) {
-  const l = state.loans.find(l => l.id === id);
-  if (!l) return;
-  document.getElementById('loanHistoryTitle').textContent = `📋 支払い履歴 — ${l.name}`;
-  const payments = [...(l.payments || [])].reverse();
-  const listEl = document.getElementById('loanHistoryList');
-  if (payments.length === 0) {
-    listEl.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:30px;font-size:13px;">まだ支払い記録がありません</div>';
-  } else {
-    const total = payments.reduce((s, p) => s + p.amount, 0);
-    listEl.innerHTML = `
-      <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0 14px;border-bottom:2px solid var(--border);margin-bottom:8px;">
-        <span style="font-size:12px;color:var(--text-muted);">合計 ${payments.length} 回</span>
-        <span style="font-size:15px;font-weight:700;color:#10b981;">累計 ¥${total.toLocaleString()}</span>
-      </div>
-      ${payments.map((p, i) => `
-        <div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);">
-          <div style="width:32px;height:32px;border-radius:8px;background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.3);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#10b981;flex-shrink:0;">${payments.length - i}</div>
-          <div style="flex:1;">
-            <div style="font-size:13px;font-weight:600;color:var(--text-primary);">${p.date}</div>
-            ${p.memo ? `<div style="font-size:11px;color:var(--text-muted);">${p.memo}</div>` : ''}
-          </div>
-          <div style="text-align:right;flex-shrink:0;">
-            <div style="font-size:14px;font-weight:700;color:#10b981;">-¥${p.amount.toLocaleString()}</div>
-          </div>
-          <button onclick="deleteLoanPayment(${id}, ${payments.length - 1 - i})"
-            style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);border-radius:6px;padding:4px 8px;color:#dc2626;cursor:pointer;font-size:11px;flex-shrink:0;">🗑</button>
-        </div>`).join('')}`;
-  }
-  document.getElementById('loanHistoryModal').classList.add('show');
-}
-
-// 支払い記録を1件削除
-function deleteLoanPayment(loanId, index) {
-  if (!confirm('この支払い記録を削除しますか？\n（残り返済回数が1増えます）')) return;
-  const l = state.loans.find(l => l.id === loanId);
-  if (!l || !l.payments) return;
-  // reverseして表示しているのでindexを逆算
-  const realIndex = l.payments.length - 1 - index;
-  l.payments.splice(realIndex, 1);
-  l.remain += 1;
-  saveAutoBackup();
-  renderLoans();
-  openLoanHistory(loanId); // 履歴モーダルを更新
-  showToast('支払い記録を削除しました');
-}
-
 function renderLoans() {
   const list = document.getElementById('loanList');
   if (!list) return;
@@ -3733,95 +3486,36 @@ function renderLoans() {
     return;
   }
   list.innerHTML = state.loans.map(l => {
-    if (!l.payments) l.payments = [];
-    const paidCount = l.payments.length;
-    const originalRemain = l.remain + paidCount; // 登録時の残り回数を逆算
-    const totalRemainAmt = l.monthly * l.remain;
-    const paidAmt = l.monthly * paidCount;
-    const pct = originalRemain > 0 ? Math.max(0, Math.min(Math.round(paidCount / originalRemain * 100), 100)) : 0;
-    const isFinished = l.remain <= 0;
-
+    const remainAmt = l.monthly * l.remain;
+    const paidAmt = l.total - remainAmt;
+    const pct = Math.max(0, Math.min(Math.round(paidAmt / l.total * 100), 100));
     const finishDate = (() => {
-      if (isFinished) return '🎉 完済済み';
       const d = new Date(); d.setMonth(d.getMonth() + l.remain);
       return `${d.getFullYear()}年${d.getMonth()+1}月完済予定`;
     })();
-
-    // 直近3件の支払い履歴
-    const recentPayments = [...(l.payments || [])].reverse().slice(0, 3);
-    const historyHTML = recentPayments.length > 0
-      ? `<div style="margin-top:10px;border-top:1px solid var(--border);padding-top:10px;">
-          <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px;">📋 直近の支払い履歴</div>
-          ${recentPayments.map(p => `
-            <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-secondary);padding:2px 0;">
-              <span>${p.date}</span>
-              <span style="font-weight:600;color:#10b981;">-¥${(p.amount||l.monthly).toLocaleString()}</span>
-            </div>`).join('')}
-          ${l.payments.length > 3 ? `<div style="font-size:10px;color:var(--text-muted);margin-top:2px;">他 ${l.payments.length - 3} 件</div>` : ''}
-        </div>`
-      : '';
-
     return `
-    <div style="padding:16px;border:1px solid ${isFinished ? 'rgba(16,185,129,0.4)' : 'var(--border)'};border-radius:14px;margin-bottom:12px;background:${isFinished ? 'rgba(16,185,129,0.04)' : 'var(--bg-card)'};">
-      <!-- ヘッダー -->
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+    <div style="padding:16px 0;border-bottom:1px solid var(--border);">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
         <div style="display:flex;align-items:center;gap:10px;">
-          <div style="width:40px;height:40px;border-radius:12px;background:${isFinished ? 'rgba(16,185,129,0.15)' : 'rgba(239,68,68,0.1)'};border:1px solid ${isFinished ? 'rgba(16,185,129,0.4)' : 'rgba(239,68,68,0.3)'};display:flex;align-items:center;justify-content:center;font-size:20px;">${l.icon}</div>
+          <div style="width:40px;height:40px;border-radius:12px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);display:flex;align-items:center;justify-content:center;font-size:20px;">${l.icon}</div>
           <div>
             <div style="font-size:14px;font-weight:600;">${l.name}</div>
-            <div style="font-size:11px;color:var(--text-muted);">月返済 ¥${l.monthly.toLocaleString()} · 借入総額 ¥${l.total.toLocaleString()}</div>
+            <div style="font-size:11px;color:var(--text-muted);">借入 ¥${l.total.toLocaleString()} · 月返済 ¥${l.monthly.toLocaleString()}</div>
           </div>
         </div>
         <div style="display:flex;gap:6px;">
           <button onclick="openLoanModal(${l.id})" style="background:var(--bg-hover);border:1px solid var(--border);border-radius:6px;padding:4px 8px;color:var(--text-muted);cursor:pointer;font-size:11px;">✏️</button>
-          <button onclick="deleteLoan(${l.id})" style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.2);border-radius:6px;padding:4px 8px;color:#dc2626;cursor:pointer;font-size:11px;">🗑</button>
+          <button onclick="deleteLoan(${l.id})" style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.2);border-radius:6px;padding:4px 8px;color:#0f172a;cursor:pointer;font-size:11px;">🗑</button>
         </div>
       </div>
-
-      <!-- 残高表示 -->
-      <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:8px;">
-        <div>
-          <div style="font-size:10px;color:var(--text-muted);margin-bottom:2px;">${isFinished ? '完済' : '残り返済額'}</div>
-          <div style="font-size:22px;font-weight:700;font-family:'Space Mono',monospace;color:${isFinished ? '#10b981' : '#ef4444'};">
-            ${isFinished ? '🎉 完済' : '¥' + totalRemainAmt.toLocaleString()}
-          </div>
-          ${!isFinished ? `<div style="font-size:11px;color:var(--text-muted);">残り <strong>${l.remain}</strong> 回</div>` : ''}
-        </div>
-        <div style="text-align:right;">
-          <div style="font-size:10px;color:var(--text-muted);margin-bottom:2px;">返済済み</div>
-          <div style="font-size:16px;font-weight:700;color:#10b981;">¥${paidAmt.toLocaleString()}</div>
-          <div style="font-size:11px;color:var(--text-muted);">${paidCount} 回支払い済み</div>
-        </div>
+      <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:6px;">
+        <span style="color:var(--text-muted);">返済済み <strong style="color:#0f172a;">${pct}%</strong></span>
+        <span style="color:#0f172a;font-weight:600;">残り ¥${remainAmt.toLocaleString()}（${l.remain}回）</span>
       </div>
-
-      <!-- プログレスバー -->
       <div style="background:var(--bg-secondary);border-radius:999px;height:10px;overflow:hidden;margin-bottom:6px;">
-        <div style="height:100%;border-radius:999px;background:${isFinished ? '#10b981' : 'linear-gradient(90deg,#10b981,#3b82f6)'};width:${pct}%;transition:width 0.5s;"></div>
+        <div style="height:100%;border-radius:999px;background:linear-gradient(90deg,#10b981,#3b82f6);width:${pct}%;transition:width 0.5s;"></div>
       </div>
-      <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-muted);margin-bottom:12px;">
-        <span>${pct}% 返済済み</span>
-        <span>📅 ${finishDate}</span>
-      </div>
-
-      <!-- 支払いボタン -->
-      ${!isFinished ? `
-      <div style="display:flex;gap:8px;">
-        <button onclick="openLoanPaymentModal(${l.id})"
-          style="flex:1;padding:10px;background:linear-gradient(135deg,#10b981,#3b82f6);border:none;border-radius:10px;color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;">
-          ✅ 支払いを記録する
-        </button>
-        ${paidCount > 0 ? `<button onclick="openLoanHistory(${l.id})"
-          style="padding:10px 14px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:10px;color:var(--text-secondary);font-size:12px;cursor:pointer;font-family:inherit;font-weight:600;" title="支払い履歴を見る">📋 履歴</button>` : ''}
-      </div>` : `
-      <div style="display:flex;gap:8px;">
-        <div style="flex:1;text-align:center;padding:10px;background:rgba(16,185,129,0.1);border-radius:10px;color:#10b981;font-size:13px;font-weight:600;">
-          🎉 おめでとうございます！完済しました
-        </div>
-        ${paidCount > 0 ? `<button onclick="openLoanHistory(${l.id})"
-          style="padding:10px 14px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:10px;color:var(--text-secondary);font-size:12px;cursor:pointer;font-family:inherit;font-weight:600;">📋 履歴</button>` : ''}
-      </div>`}
-
-      ${historyHTML}
+      <div style="font-size:11px;color:var(--text-muted);">📅 ${finishDate}</div>
     </div>`;
   }).join('');
 }
@@ -4774,8 +4468,9 @@ function exportExcel(type) {
 
   } else if (type === 'budget') {
     const m = state.currentMonth;
+    // 全ルームの支出を集計（予算ページと同じ基準）
     const txs = state.transactions.filter(t=>
-      Number(t.roomId)===Number(state.currentRoom) && t.type==='expense' && isSameBillingMonth(t.date,m)
+      t.type==='expense' && isSameBillingMonth(t.date,m)
     );
     const rows = [['カテゴリ','予算','使用額','残り','達成率(%)']];
     state.budgets.forEach(b => {
