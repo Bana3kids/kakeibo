@@ -2006,7 +2006,7 @@
     <div style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:12px 20px 80px 20px;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
         <div style="font-size:13px;font-weight:600;color:var(--text-secondary);">このカテゴリの取引</div>
-        <button onclick="openAddTxForBudgetCat()" style="
+        <button id="bdAddBtn" onclick="openAddTxForBudgetCat()" style="
           display:flex;align-items:center;gap:5px;padding:5px 12px;
           background:var(--blue-glow);border:1px solid var(--blue);
           border-radius:8px;color:var(--blue-light);font-size:12px;
@@ -3536,7 +3536,12 @@ function openBudgetDetail(budgetId) {
   bdBar.style.background = barColor;
 
   // 取引リスト
+  const isMobile = window.innerWidth <= 768;
   const listEl = document.getElementById('bdTxList');
+  // モバイルは閲覧専用なので追加ボタンも非表示
+  const addBtn = document.getElementById('bdAddBtn');
+  if (addBtn) addBtn.style.display = isMobile ? 'none' : 'flex';
+
   if (txs.length === 0) {
     listEl.innerHTML = `<div style="text-align:center;padding:40px 20px;color:var(--text-muted);">
       <div style="font-size:32px;margin-bottom:10px;">${b.icon}</div>
@@ -3562,6 +3567,7 @@ function openBudgetDetail(budgetId) {
         </div>
         <div style="font-family:'Space Mono',monospace;font-size:14px;font-weight:700;
                     color:#ef4444;flex-shrink:0;">-¥${t.amount.toLocaleString()}</div>
+        ${isMobile ? '' : `
         <div style="display:flex;gap:4px;flex-shrink:0;">
           <button onclick="editTxFromBudgetDetail(${t.id})"
             style="background:var(--bg-hover);border:1px solid var(--border);border-radius:6px;
@@ -3569,7 +3575,7 @@ function openBudgetDetail(budgetId) {
           <button onclick="deleteTxFromBudgetDetail(${t.id},'${b.name}')"
             style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.2);border-radius:6px;
                    padding:4px 8px;color:#dc2626;cursor:pointer;font-size:11px;">🗑</button>
-        </div>
+        </div>`}
       </div>`;
     }).join('');
   }
