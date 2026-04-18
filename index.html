@@ -959,7 +959,7 @@
             </div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
               <div style="background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.2);border-radius:10px;padding:10px 14px;">
-                <div style="font-size:10px;color:var(--text-muted);margin-bottom:3px;">💵 現金・日常収支</div>
+                <div style="font-size:10px;color:var(--text-muted);margin-bottom:3px;">💵 現金</div>
                 <div id="combinedCashExpense" style="font-size:18px;font-weight:700;font-family:'Space Mono',monospace;color:#0f172a;">¥0</div>
               </div>
               <div style="background:rgba(139,92,246,0.08);border:1px solid rgba(139,92,246,0.2);border-radius:10px;padding:10px 14px;">
@@ -1952,11 +1952,11 @@
 <!-- 予算カテゴリ詳細ドロワー -->
 <div id="budgetDetailOverlay" style="
   position:fixed;inset:0;background:rgba(0,0,0,0.5);backdrop-filter:blur(4px);
-  z-index:200;display:none;align-items:flex-end;justify-content:center;
+  z-index:100000;display:none;align-items:flex-end;justify-content:center;
 " onclick="closeBudgetDetail(event)">
   <div id="budgetDetailDrawer" style="
     background:var(--bg-card);border-radius:20px 20px 0 0;
-    width:100%;max-width:680px;max-height:85vh;
+    width:100%;max-width:680px;max-height:90vh;
     display:flex;flex-direction:column;
     transform:translateY(100%);transition:transform 0.35s cubic-bezier(0.32,0.72,0,1);
     overflow:hidden;
@@ -2003,7 +2003,7 @@
       </div>
     </div>
     <!-- 取引リスト -->
-    <div style="flex:1;overflow-y:auto;padding:12px 20px 20px;">
+    <div style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:12px 20px 80px 20px;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
         <div style="font-size:13px;font-weight:600;color:var(--text-secondary);">このカテゴリの取引</div>
         <button onclick="openAddTxForBudgetCat()" style="
@@ -2087,6 +2087,10 @@ async function loadFromFirestore() {
         };
       }
       if (data.currentMonth) state.currentMonth = new Date(data.currentMonth);
+      // 旧ルーム名マイグレーション：「現金・日常収支」→「現金」
+      state.rooms.forEach(r => {
+        if (r.name === '現金・日常収支') r.name = '現金';
+      });
       return true;
     }
   } catch(e) { console.warn('読込エラー:', e); }
@@ -2148,7 +2152,7 @@ function isSameBillingMonth(dateStr, monthDate) {
 // 状態管理
 let state = {
   rooms: [
-    { id: 1, name: '現金・日常収支', icon: '💵', color: '#3b82f6' },
+    { id: 1, name: '現金', icon: '💵', color: '#3b82f6' },
     { id: 2, name: 'クレジットカード', icon: '💳', color: '#8b5cf6' },
   ],
   currentRoom: 1,
@@ -3578,6 +3582,9 @@ function openBudgetDetail(budgetId) {
     requestAnimationFrame(() => { drawer.style.transform = 'translateY(0)'; });
   });
   document.body.style.overflow = 'hidden';
+  // モバイルコンテンツエリアもスクロール停止
+  const mContent = document.getElementById('mContent');
+  if (mContent) mContent.style.overflow = 'hidden';
 }
 
 function closeBudgetDetail(event) {
@@ -3591,6 +3598,9 @@ function closeBudgetDetailDirect() {
   drawer.style.transform = 'translateY(100%)';
   setTimeout(() => { overlay.style.display = 'none'; }, 350);
   document.body.style.overflow = '';
+  // モバイルコンテンツエリアのスクロール復元
+  const mContent = document.getElementById('mContent');
+  if (mContent) mContent.style.overflow = '';
   _budgetDetailId = null;
 }
 
@@ -5089,6 +5099,10 @@ function loadAutoBackup() {
         };
       }
       if (data.currentMonth) state.currentMonth = new Date(data.currentMonth);
+      // 旧ルーム名マイグレーション：「現金・日常収支」→「現金」
+      state.rooms.forEach(r => {
+        if (r.name === '現金・日常収支') r.name = '現金';
+      });
       console.log('自動バックアップから復元:', savedTime);
     }
   } catch(e) {}
