@@ -3682,11 +3682,16 @@ function saveSavings() {
   }
   closeModal('savingsModal');
   renderSavings();
+  saveToFirestore();
+  saveAutoBackup();
 }
 function deleteSavings(id) {
   if (!confirm('この貯蓄目標を削除しますか？')) return;
   state.savings = state.savings.filter(s => s.id !== id);
-  renderSavings(); showToast('削除しました');
+  renderSavings();
+  saveToFirestore();
+  saveAutoBackup();
+  showToast('削除しました');
 }
 function renderSavings() {
   const list = document.getElementById('savingsList');
@@ -3770,11 +3775,16 @@ function saveLoan() {
   }
   closeModal('loanModal');
   renderLoans();
+  saveToFirestore();
+  saveAutoBackup();
 }
 function deleteLoan(id) {
   if (!confirm('このローンを削除しますか？')) return;
   state.loans = state.loans.filter(l => l.id !== id);
-  renderLoans(); showToast('削除しました');
+  renderLoans();
+  saveToFirestore();
+  saveAutoBackup();
+  showToast('削除しました');
 }
 function renderLoans() {
   const list = document.getElementById('loanList');
@@ -3859,11 +3869,16 @@ function saveSub() {
   }
   closeModal('subModal');
   renderSubs();
+  saveToFirestore();
+  saveAutoBackup();
 }
 function deleteSub(id) {
   if (!confirm('このサブスクを削除しますか？')) return;
   state.subscriptions = state.subscriptions.filter(s => s.id !== id);
-  renderSubs(); showToast('削除しました');
+  renderSubs();
+  saveToFirestore();
+  saveAutoBackup();
+  showToast('削除しました');
 }
 function renderSubs() {
   const monthly = state.subscriptions.reduce((s, sub) => s + sub.amount, 0);
@@ -3963,13 +3978,18 @@ function saveJob() {
   }
   closeModal('jobModal');
   renderIncomeGoal();
+  saveToFirestore();
+  saveAutoBackup();
 }
 
 function deleteJob(id) {
   if (!confirm('このバイト先を削除しますか？（記録も全て削除されます）')) return;
   state.jobs = state.jobs.filter(j => j.id !== id);
   state.workLogs = state.workLogs.filter(w => w.jobId !== id);
-  renderIncomeGoal(); showToast('削除しました');
+  renderIncomeGoal();
+  saveToFirestore();
+  saveAutoBackup();
+  showToast('削除しました');
 }
 
 // 勤務記録
@@ -4040,12 +4060,17 @@ function saveWorkLog() {
   }
   closeModal('workLogModal');
   renderIncomeGoal();
+  saveToFirestore();
+  saveAutoBackup();
 }
 
 function deleteWorkLog(id) {
   if (!confirm('この記録を削除しますか？')) return;
   state.workLogs = state.workLogs.filter(w => w.id !== id);
-  renderIncomeGoal(); showToast('削除しました');
+  renderIncomeGoal();
+  saveToFirestore();
+  saveAutoBackup();
+  showToast('削除しました');
 }
 
 function renderIncomeGoal() {
