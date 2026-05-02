@@ -1028,20 +1028,24 @@
     <div id="page-graph" style="display:none;">
 
       <!-- タブ切り替え -->
-      <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
+      <div style="display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap;">
         <button class="gtab active" id="gtab_monthly" onclick="setGraphTab('monthly')"
-          style="padding:8px 16px;border-radius:20px;border:1px solid var(--blue);background:var(--blue-glow);color:var(--blue-light);font-size:13px;cursor:pointer;font-family:inherit;font-weight:600;">📅 月別推移</button>
+          style="padding:7px 14px;border-radius:20px;border:1px solid var(--blue);background:var(--blue-glow);color:var(--blue-light);font-size:12px;cursor:pointer;font-family:inherit;font-weight:600;">📅 月別推移</button>
         <button class="gtab" id="gtab_category" onclick="setGraphTab('category')"
-          style="padding:8px 16px;border-radius:20px;border:1px solid var(--border);background:transparent;color:var(--text-muted);font-size:13px;cursor:pointer;font-family:inherit;font-weight:600;">🥧 カテゴリ別</button>
+          style="padding:7px 14px;border-radius:20px;border:1px solid var(--border);background:transparent;color:var(--text-muted);font-size:12px;cursor:pointer;font-family:inherit;font-weight:600;">🥧 カテゴリ別</button>
         <button class="gtab" id="gtab_weekly" onclick="setGraphTab('weekly')"
-          style="padding:8px 16px;border-radius:20px;border:1px solid var(--border);background:transparent;color:var(--text-muted);font-size:13px;cursor:pointer;font-family:inherit;font-weight:600;">📆 週別</button>
+          style="padding:7px 14px;border-radius:20px;border:1px solid var(--border);background:transparent;color:var(--text-muted);font-size:12px;cursor:pointer;font-family:inherit;font-weight:600;">📆 週別</button>
         <button class="gtab" id="gtab_compare" onclick="setGraphTab('compare')"
-          style="padding:8px 16px;border-radius:20px;border:1px solid var(--border);background:transparent;color:var(--text-muted);font-size:13px;cursor:pointer;font-family:inherit;font-weight:600;">📊 収支比較</button>
+          style="padding:7px 14px;border-radius:20px;border:1px solid var(--border);background:transparent;color:var(--text-muted);font-size:12px;cursor:pointer;font-family:inherit;font-weight:600;">📊 収支比較</button>
+        <button class="gtab" id="gtab_advice" onclick="setGraphTab('advice')"
+          style="padding:7px 14px;border-radius:20px;border:1px solid rgba(251,191,36,0.5);background:rgba(251,191,36,0.08);color:#f59e0b;font-size:12px;cursor:pointer;font-family:inherit;font-weight:600;">💡 FPアドバイス</button>
       </div>
 
-      <!-- 月別推移 -->
+      <!-- ── 月別推移 ── -->
       <div id="graph-monthly">
-        <div class="card" style="margin-bottom:16px;">
+        <!-- 今月サマリー -->
+        <div id="gMonthlySummary" style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px;"></div>
+        <div class="card" style="margin-bottom:14px;">
           <div class="card-header">
             <div class="card-title">📅 月別 収入・支出推移（過去6ヶ月）</div>
           </div>
@@ -1049,69 +1053,73 @@
             <canvas id="chartMonthly" height="220"></canvas>
           </div>
         </div>
+        <!-- インサイトパネル -->
+        <div id="gMonthlyInsight" style="margin-bottom:14px;"></div>
       </div>
 
-      <!-- カテゴリ別 -->
+      <!-- ── カテゴリ別 ── -->
       <div id="graph-category" style="display:none;">
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+        <!-- 今月サマリー（再掲） -->
+        <div id="gCatSummary" style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px;"></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;">
           <div class="card">
-            <div class="card-header">
-              <div class="card-title">🔴 支出カテゴリ</div>
-            </div>
+            <div class="card-header"><div class="card-title">🔴 支出カテゴリ</div></div>
             <div class="card-body">
-              <canvas id="chartCatExpense" height="220"></canvas>
+              <canvas id="chartCatExpense" height="200"></canvas>
               <div id="catLegendExpense" style="margin-top:12px;"></div>
             </div>
           </div>
           <div class="card">
-            <div class="card-header">
-              <div class="card-title">🟢 収入カテゴリ</div>
-            </div>
+            <div class="card-header"><div class="card-title">🟢 収入カテゴリ</div></div>
             <div class="card-body">
-              <canvas id="chartCatIncome" height="220"></canvas>
+              <canvas id="chartCatIncome" height="200"></canvas>
               <div id="catLegendIncome" style="margin-top:12px;"></div>
             </div>
           </div>
         </div>
+        <!-- 支出ランキング -->
+        <div id="gCatRanking" style="margin-bottom:14px;"></div>
       </div>
 
-      <!-- 週別 -->
+      <!-- ── 週別 ── -->
       <div id="graph-weekly" style="display:none;">
-        <div class="card">
-          <div class="card-header">
-            <div class="card-title">📆 今月の週別支出</div>
-          </div>
+        <div class="card" style="margin-bottom:14px;">
+          <div class="card-header"><div class="card-title">📆 今月の週別支出</div></div>
           <div class="card-body">
             <canvas id="chartWeekly" height="220"></canvas>
           </div>
         </div>
+        <div id="gWeeklyInsight" style="margin-bottom:14px;"></div>
       </div>
 
-      <!-- 収支比較 -->
+      <!-- ── 収支比較 ── -->
       <div id="graph-compare" style="display:none;">
-        <div class="card" style="margin-bottom:16px;">
-          <div class="card-header">
-            <div class="card-title">📊 月別 収支バランス</div>
-          </div>
+        <div class="card" style="margin-bottom:14px;">
+          <div class="card-header"><div class="card-title">📊 月別 収支バランス（過去6ヶ月）</div></div>
           <div class="card-body">
             <canvas id="chartCompare" height="220"></canvas>
           </div>
         </div>
-        <!-- サマリーカード -->
-        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;">
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px;">
           <div class="card" style="text-align:center;padding:16px;">
-            <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px;">今月の収支差</div>
-            <div id="gBalanceAmt" style="font-size:22px;font-weight:700;font-family:'Space Mono',monospace;">¥0</div>
+            <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px;">今月の収支差</div>
+            <div id="gBalanceAmt" style="font-size:20px;font-weight:700;font-family:'Space Mono',monospace;">¥0</div>
           </div>
           <div class="card" style="text-align:center;padding:16px;">
-            <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px;">最大支出カテゴリ</div>
-            <div id="gTopCat" style="font-size:16px;font-weight:700;">-</div>
+            <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px;">最大支出カテゴリ</div>
+            <div id="gTopCat" style="font-size:13px;font-weight:700;">-</div>
           </div>
           <div class="card" style="text-align:center;padding:16px;">
-            <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px;">貯蓄率</div>
-            <div id="gSavingRate" style="font-size:22px;font-weight:700;font-family:'Space Mono',monospace;">0%</div>
+            <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px;">貯蓄率</div>
+            <div id="gSavingRate" style="font-size:20px;font-weight:700;font-family:'Space Mono',monospace;">0%</div>
           </div>
         </div>
+        <div id="gCompareInsight" style="margin-bottom:14px;"></div>
+      </div>
+
+      <!-- ── FPアドバイス ── -->
+      <div id="graph-advice" style="display:none;">
+        <div id="gAdvicePanel"></div>
       </div>
 
     </div>
@@ -3013,10 +3021,16 @@ let currentGraphTab = 'monthly';
 
 function setGraphTab(tab) {
   currentGraphTab = tab;
-  ['monthly','category','weekly','compare'].forEach(t => {
-    document.getElementById('graph-' + t).style.display = t === tab ? '' : 'none';
+  ['monthly','category','weekly','compare','advice'].forEach(t => {
+    const panel = document.getElementById('graph-' + t);
+    if (panel) panel.style.display = t === tab ? '' : 'none';
     const btn = document.getElementById('gtab_' + t);
-    if (btn) {
+    if (!btn) return;
+    if (t === 'advice') {
+      btn.style.borderColor = t === tab ? '#f59e0b' : 'rgba(251,191,36,0.5)';
+      btn.style.background = t === tab ? 'rgba(251,191,36,0.2)' : 'rgba(251,191,36,0.08)';
+      btn.style.color = '#f59e0b';
+    } else {
       btn.style.borderColor = t === tab ? 'var(--blue)' : 'var(--border)';
       btn.style.background = t === tab ? 'var(--blue-glow)' : 'transparent';
       btn.style.color = t === tab ? 'var(--blue-light)' : 'var(--text-muted)';
@@ -3041,9 +3055,8 @@ function getMonthlyData() {
   const result = [];
   for (let i = 5; i >= 0; i--) {
     const d = new Date(state.currentMonth.getFullYear(), state.currentMonth.getMonth() - i, 1);
-    const txs = state.transactions.filter(t =>
-      Number(t.roomId) === Number(state.currentRoom) && isSameBillingMonth(t.date, d)
-    );
+    // 全ルームの取引を集計（収支サマリーと同じ基準）
+    const txs = state.transactions.filter(t => isSameBillingMonth(t.date, d));
     result.push({
       label: `${d.getMonth()+1}月`,
       income: txs.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0),
@@ -3058,31 +3071,100 @@ function renderGraphs() {
   else if (currentGraphTab === 'category') renderCategoryCharts();
   else if (currentGraphTab === 'weekly') renderWeeklyChart();
   else if (currentGraphTab === 'compare') renderCompareChart();
+  else if (currentGraphTab === 'advice') renderFPAdvice();
+}
+
+// ─── グラフ共通ヘルパー ───
+function insightCard(emoji, title, body, color='#3b82f6', bg='rgba(59,130,246,0.08)') {
+  return `<div class="card" style="padding:14px 16px;border-left:4px solid ${color};background:${bg};margin-bottom:10px;">
+    <div style="font-size:13px;font-weight:700;color:${color};margin-bottom:4px;">${emoji} ${title}</div>
+    <div style="font-size:12px;color:var(--text-secondary);line-height:1.7;">${body}</div>
+  </div>`;
+}
+
+function monthlySummaryCards(data) {
+  const cur = data[data.length-1];
+  const prev = data[data.length-2];
+  const balance = cur.income - cur.expense;
+  const savingRate = cur.income > 0 ? Math.round((cur.income - cur.expense)/cur.income*100) : 0;
+  const expDiff = prev && prev.expense > 0 ? Math.round((cur.expense - prev.expense)/prev.expense*100) : null;
+  const balColor = balance >= 0 ? '#10b981' : '#ef4444';
+  const rateColor = savingRate >= 20 ? '#10b981' : savingRate >= 0 ? '#f59e0b' : '#ef4444';
+  return `
+    <div class="card" style="text-align:center;padding:14px 10px;">
+      <div style="font-size:10px;color:var(--text-muted);margin-bottom:4px;">収入</div>
+      <div style="font-size:16px;font-weight:700;font-family:'Space Mono',monospace;color:#10b981;">¥${cur.income.toLocaleString()}</div>
+    </div>
+    <div class="card" style="text-align:center;padding:14px 10px;">
+      <div style="font-size:10px;color:var(--text-muted);margin-bottom:4px;">支出</div>
+      <div style="font-size:16px;font-weight:700;font-family:'Space Mono',monospace;color:#ef4444;">¥${cur.expense.toLocaleString()}</div>
+      ${expDiff!==null ? `<div style="font-size:10px;color:${expDiff>0?'#ef4444':'#10b981'};margin-top:2px;">${expDiff>0?'↑':'↓'}前月比${Math.abs(expDiff)}%</div>` : ''}
+    </div>
+    <div class="card" style="text-align:center;padding:14px 10px;">
+      <div style="font-size:10px;color:var(--text-muted);margin-bottom:4px;">貯蓄率</div>
+      <div style="font-size:16px;font-weight:700;font-family:'Space Mono',monospace;color:${rateColor};">${savingRate}%</div>
+      <div style="font-size:10px;color:${balColor};margin-top:2px;">${balance>=0?'黒字':'赤字'} ¥${Math.abs(balance).toLocaleString()}</div>
+    </div>`;
 }
 
 function renderMonthlyChart() {
-  destroyChart('monthly');
   const data = getMonthlyData();
+  const cur = data[data.length-1];
+  const prev = data[data.length-2];
+
+  // サマリーカード
+  const summEl = document.getElementById('gMonthlySummary');
+  if (summEl) summEl.innerHTML = monthlySummaryCards(data);
+
+  destroyChart('monthly');
   const ctx = document.getElementById('chartMonthly');
   if (!ctx) return;
+
+  // 収支差をデータに追加
   chartInstances['monthly'] = new Chart(ctx, {
     type: 'bar',
     data: {
       labels: data.map(d => d.label),
       datasets: [
-        { label: '収入', data: data.map(d => d.income), backgroundColor: 'rgba(16,185,129,0.6)', borderColor: '#10b981', borderWidth: 1, borderRadius: 6 },
-        { label: '支出', data: data.map(d => d.expense), backgroundColor: 'rgba(239,68,68,0.6)', borderColor: '#ef4444', borderWidth: 1, borderRadius: 6 },
+        { label: '収入', data: data.map(d => d.income), backgroundColor: 'rgba(16,185,129,0.65)', borderColor: '#10b981', borderWidth: 1, borderRadius: 6, order: 2 },
+        { label: '支出', data: data.map(d => d.expense), backgroundColor: 'rgba(239,68,68,0.65)', borderColor: '#ef4444', borderWidth: 1, borderRadius: 6, order: 2 },
+        { label: '収支差', data: data.map(d => d.income - d.expense), type: 'line', borderColor: '#8b5cf6', backgroundColor: 'transparent', tension: 0.4, borderDash: [5,4], pointBackgroundColor: data.map(d => d.income-d.expense >= 0 ? '#10b981' : '#ef4444'), pointRadius: 5, order: 1 },
       ]
     },
-    options: { ...chartDefaults, responsive: true }
+    options: { ...chartDefaults, responsive: true,
+      plugins: { ...chartDefaults.plugins,
+        tooltip: { callbacks: { label: c => ` ${c.dataset.label}: ¥${c.raw.toLocaleString()}` } }
+      }
+    }
   });
+
+  // インサイト
+  const insights = [];
+  const balance = cur.income - cur.expense;
+  const savingRate = cur.income > 0 ? Math.round((balance/cur.income)*100) : 0;
+
+  if (balance >= 0) {
+    if (savingRate >= 20) insights.push(insightCard('🏆','優秀な貯蓄ペースです！',`今月の貯蓄率は<strong>${savingRate}%</strong>。FP目標の20%超えを達成しています。この調子で積立投資や緊急資金の積み増しを検討しましょう。`,'#10b981','rgba(16,185,129,0.08)'));
+    else if (savingRate >= 10) insights.push(insightCard('✅','黒字を維持しています',`今月の貯蓄率は<strong>${savingRate}%</strong>（黒字 ¥${balance.toLocaleString()}）。もう一息で理想の20%に近づきます。固定費の見直しでさらに改善できます。`,'#3b82f6','rgba(59,130,246,0.08)'));
+    else insights.push(insightCard('⚠️','収支は黒字ですが貯蓄率が低め',`今月の貯蓄率は<strong>${savingRate}%</strong>。黒字は良いサインですが、FPが推奨する20%にはまだ差があります。支出の中で削れる項目がないか確認しましょう。`,'#f59e0b','rgba(245,158,11,0.08)'));
+  } else {
+    insights.push(insightCard('🚨','今月は赤字です',`支出が収入を <strong>¥${Math.abs(balance).toLocaleString()}</strong> 超過しています。一時的な出費であれば問題ありませんが、連続する場合は家計の見直しが必要です。`,'#ef4444','rgba(239,68,68,0.08)'));
+  }
+
+  if (prev && prev.expense > 0) {
+    const expDiff = Math.round((cur.expense - prev.expense)/prev.expense*100);
+    if (expDiff > 20) insights.push(insightCard('📈','支出が急増しています',`今月の支出は先月比 <strong>+${expDiff}%</strong> 増加しました。大きな出費があったか確認し、来月に向けて調整しましょう。`,'#f59e0b','rgba(245,158,11,0.08)'));
+    else if (expDiff < -10) insights.push(insightCard('💪','支出を上手に抑えられています',`今月の支出は先月比 <strong>${expDiff}%</strong> 減少しました。節約の効果が出ています！`,'#10b981','rgba(16,185,129,0.08)'));
+  }
+
+  const insEl = document.getElementById('gMonthlyInsight');
+  if (insEl) insEl.innerHTML = insights.join('') || insightCard('📊','データ収集中','取引を追加すると、ここに家計の分析コメントが表示されます。','#94a3b8','rgba(148,163,184,0.08)');
 }
 
 function renderCategoryCharts() {
   const m = state.currentMonth;
-  const txs = state.transactions.filter(t =>
-    Number(t.roomId) === Number(state.currentRoom) && isSameBillingMonth(t.date, m)
-  );
+  // 全ルームの取引を集計
+  const txs = state.transactions.filter(t => isSameBillingMonth(t.date, m));
 
   ['expense','income'].forEach(type => {
     const suffix = type === 'expense' ? 'Expense' : 'Income';
@@ -3130,6 +3212,55 @@ function renderCategoryCharts() {
       `).join('');
     }
   });
+
+  // カテゴリサマリー
+  const catSummEl = document.getElementById('gCatSummary');
+  if (catSummEl) catSummEl.innerHTML = monthlySummaryCards(getMonthlyData());
+
+  // 支出ランキングカード
+  const expMap = {};
+  txs.filter(t=>t.type==='expense').forEach(t => {
+    expMap[t.category] = (expMap[t.category]||{amount:0,color:t.color,icon:t.icon});
+    expMap[t.category].amount += t.amount;
+  });
+  const expEntries = Object.entries(expMap).sort((a,b)=>b[1].amount-a[1].amount);
+  const totalExp = expEntries.reduce((s,e)=>s+e[1].amount,0);
+  const rankEl = document.getElementById('gCatRanking');
+  if (rankEl && expEntries.length > 0) {
+    const medals = ['🥇','🥈','🥉'];
+    rankEl.innerHTML = `
+    <div class="card" style="margin-bottom:10px;">
+      <div class="card-header"><div class="card-title">📊 支出カテゴリランキング</div></div>
+      <div class="card-body">
+        ${expEntries.slice(0,5).map((e,i) => {
+          const pct = Math.round(e[1].amount/totalExp*100);
+          const budgetItem = state.budgets.find(b=>b.name===e[0]);
+          const overBudget = budgetItem && e[1].amount > budgetItem.amount;
+          return `<div style="margin-bottom:12px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+              <div style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:600;">
+                <span>${medals[i]||`${i+1}.`}</span>
+                <span>${e[1].icon} ${e[0]}</span>
+                ${overBudget ? '<span style="font-size:10px;background:rgba(239,68,68,0.15);color:#ef4444;padding:1px 6px;border-radius:10px;">予算超過</span>' : ''}
+              </div>
+              <div style="text-align:right;">
+                <span style="font-size:13px;font-weight:700;color:#ef4444;">¥${e[1].amount.toLocaleString()}</span>
+                <span style="font-size:11px;color:var(--text-muted);margin-left:6px;">${pct}%</span>
+              </div>
+            </div>
+            <div style="background:var(--bg-secondary);border-radius:999px;height:7px;overflow:hidden;">
+              <div style="height:100%;border-radius:999px;background:${overBudget?'#ef4444':e[1].color};width:${pct}%;transition:width 0.5s;"></div>
+            </div>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>
+    ${expEntries.length > 0 ? insightCard('💡','支出の内訳を把握しましょう',
+      `今月最も多い支出は <strong>${expEntries[0][1].icon} ${expEntries[0][0]}（¥${expEntries[0][1].amount.toLocaleString()}・全体の${Math.round(expEntries[0][1].amount/totalExp*100)}%）</strong>。
+      上位3カテゴリで全支出の<strong>${Math.round(expEntries.slice(0,3).reduce((s,e)=>s+e[1].amount,0)/totalExp*100)}%</strong>を占めています。
+      この項目を5〜10%削減できると家計が大きく改善します。`,'#8b5cf6','rgba(139,92,246,0.08)') : ''}
+    `;
+  }
 }
 
 function renderWeeklyChart() {
@@ -3140,8 +3271,9 @@ function renderWeeklyChart() {
   const weeks = ['第1週','第2週','第3週','第4週','第5週'];
   const weekData = [0,0,0,0,0];
 
+  // 全ルームの支出を集計
   state.transactions.filter(t =>
-    Number(t.roomId)===Number(state.currentRoom) && t.type==='expense' && isSameBillingMonth(t.date, m)
+    t.type==='expense' && isSameBillingMonth(t.date, m)
   ).forEach(t => {
     const d = parseInt(t.date.split('-')[2]);
     const w = Math.min(Math.floor((d-1)/7), 4);
@@ -3166,8 +3298,34 @@ function renderWeeklyChart() {
         borderWidth: 1, borderRadius: 8,
       }]
     },
-    options: { ...chartDefaults, responsive: true, plugins: { legend: { display: false } } }
+    options: { ...chartDefaults, responsive: true, plugins: { ...chartDefaults.plugins, legend: { display: false } } }
   });
+
+  // 週別インサイト
+  const activeData = weekData.slice(0, activeWeeks);
+  const maxWeekIdx = activeData.indexOf(Math.max(...activeData));
+  const avgWeekly = activeData.reduce((s,v)=>s+v,0) / activeData.filter(v=>v>0).length || 0;
+  const today = new Date();
+  const currentWeekIdx = Math.min(Math.floor((today.getDate()-1)/7), activeWeeks-1);
+  const weeklyBudgetHint = avgWeekly > 0 ? Math.round(avgWeekly) : null;
+
+  const insArr = [];
+  if (activeData[maxWeekIdx] > 0) {
+    insArr.push(insightCard('📊',`${weeks[maxWeekIdx]}の支出が最多`,
+      `今月最も支出が多かったのは <strong>${weeks[maxWeekIdx]}（¥${activeData[maxWeekIdx].toLocaleString()}）</strong>です。
+      週平均は <strong>¥${Math.round(avgWeekly).toLocaleString()}</strong>。支出の波を平準化できると計画的な家計管理につながります。`,
+      '#f59e0b','rgba(245,158,11,0.08)'));
+  }
+  if (currentWeekIdx < activeWeeks) {
+    const thisWeek = activeData[currentWeekIdx];
+    if (weeklyBudgetHint && thisWeek > avgWeekly * 1.3) {
+      insArr.push(insightCard('⚠️','今週の支出ペースが速め',
+        `今週すでに <strong>¥${thisWeek.toLocaleString()}</strong> 支出しています。週平均（¥${Math.round(avgWeekly).toLocaleString()}）を超過するペースです。残り日数を意識して使いすぎに注意しましょう。`,
+        '#ef4444','rgba(239,68,68,0.08)'));
+    }
+  }
+  const wInsEl = document.getElementById('gWeeklyInsight');
+  if (wInsEl) wInsEl.innerHTML = insArr.join('') || '';
 }
 
 function renderCompareChart() {
@@ -3198,9 +3356,9 @@ function renderCompareChart() {
     el.style.color = '#0f172a';
   }
 
-  // 最大支出カテゴリ
+  // 全ルームの最大支出カテゴリ
   const txs = state.transactions.filter(t =>
-    Number(t.roomId)===Number(state.currentRoom) && t.type==='expense' && isSameBillingMonth(t.date, m)
+    t.type==='expense' && isSameBillingMonth(t.date, m)
   );
   const catMap = {};
   txs.forEach(t => { catMap[t.category] = (catMap[t.category]||0) + t.amount; });
@@ -3215,8 +3373,169 @@ function renderCompareChart() {
     rateEl.textContent = rate + '%';
     rateEl.style.color = rate >= 20 ? '#10b981' : rate >= 0 ? '#f59e0b' : '#ef4444';
   }
+
+  // 収支比較インサイト
+  const surplusMonths = data.filter(d=>d.income-d.expense>0).length;
+  const deficitMonths = data.length - surplusMonths;
+  const avgBalance = data.reduce((s,d)=>s+(d.income-d.expense),0)/data.length;
+  const cInsights = [];
+  if (surplusMonths >= 5) cInsights.push(insightCard('🏆','安定した黒字を継続しています',`過去6ヶ月のうち <strong>${surplusMonths}ヶ月</strong> が黒字。平均月次収支は <strong>+¥${Math.round(avgBalance).toLocaleString()}</strong>。非常に安定した家計です。余剰資金は積立NISAや緊急資金（生活費3〜6ヶ月分）の準備に活用しましょう。`,'#10b981','rgba(16,185,129,0.08)'));
+  else if (deficitMonths >= 3) cInsights.push(insightCard('🚨','赤字が続いています',`過去6ヶ月のうち <strong>${deficitMonths}ヶ月</strong> が赤字。平均月次収支は <strong>¥${Math.round(avgBalance).toLocaleString()}</strong>。支出構造の見直しが急務です。まず固定費（保険・サブスク・通信費）から削減を検討してください。`,'#ef4444','rgba(239,68,68,0.08)'));
+  else cInsights.push(insightCard('📈','収支が改善傾向です',`黒字月 <strong>${surplusMonths}ヶ月</strong>、赤字月 <strong>${deficitMonths}ヶ月</strong>。月によってばらつきがあります。毎月の支出を一定に保つことで、より安定した家計になります。`,'#3b82f6','rgba(59,130,246,0.08)'));
+
+  const cInsEl = document.getElementById('gCompareInsight');
+  if (cInsEl) cInsEl.innerHTML = cInsights.join('');
 }
 
+
+// ─── FPアドバイス ───
+function renderFPAdvice() {
+  const el = document.getElementById('gAdvicePanel');
+  if (!el) return;
+
+  const m = state.currentMonth;
+  const data = getMonthlyData();
+  const cur = data[data.length-1];
+  const balance = cur.income - cur.expense;
+  const savingRate = cur.income > 0 ? Math.round(balance/cur.income*100) : 0;
+
+  const txs = state.transactions.filter(t => isSameBillingMonth(t.date, m));
+  const expTxs = txs.filter(t=>t.type==='expense');
+  const totalExp = expTxs.reduce((s,t)=>s+t.amount,0);
+
+  // カテゴリ別集計
+  const catMap = {};
+  expTxs.forEach(t => { catMap[t.category] = (catMap[t.category]||0)+t.amount; });
+  const topCats = Object.entries(catMap).sort((a,b)=>b[1]-a[1]);
+
+  // 予算超過チェック
+  const overBudgets = state.budgets.filter(b => {
+    const used = expTxs.filter(t=>t.category===b.name).reduce((s,t)=>s+t.amount,0);
+    return used > b.amount;
+  });
+
+  // ローン負担
+  const totalLoanMonthly = state.loans.reduce((s,l)=>s+l.monthly,0);
+  const loanRatio = cur.income > 0 ? Math.round(totalLoanMonthly/cur.income*100) : 0;
+
+  // サブスク合計
+  const totalSubs = state.subscriptions.reduce((s,sb)=>s+sb.amount,0);
+
+  // 緊急資金チェック
+  const savings = state.savings.reduce((s,sv)=>s+sv.current,0);
+  const emergencyTarget = cur.expense * 3;
+
+  const cards = [];
+
+  // ── 総合スコア ──
+  let score = 60;
+  let scoreColor = '#f59e0b';
+  let scoreMsg = '改善の余地あり';
+  if (savingRate >= 20) { score += 20; }
+  else if (savingRate >= 10) { score += 10; }
+  else if (savingRate < 0) { score -= 20; }
+  if (overBudgets.length === 0 && state.budgets.length > 0) score += 10;
+  if (loanRatio < 25) score += 5;
+  if (savings >= emergencyTarget) score += 5;
+  score = Math.min(100, Math.max(0, score));
+  if (score >= 80) { scoreColor = '#10b981'; scoreMsg = '優良'; }
+  else if (score >= 60) { scoreColor = '#3b82f6'; scoreMsg = '普通'; }
+  else { scoreColor = '#ef4444'; scoreMsg = '要改善'; }
+
+  cards.push(`
+  <div class="card" style="padding:20px;margin-bottom:12px;background:linear-gradient(135deg,rgba(139,92,246,0.12),rgba(59,130,246,0.12));border-color:rgba(139,92,246,0.3);">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+      <div>
+        <div style="font-size:13px;color:var(--text-muted);margin-bottom:2px;">💡 今月の家計健全度スコア</div>
+        <div style="font-size:11px;color:var(--text-muted);">${m.getFullYear()}年${m.getMonth()+1}月</div>
+      </div>
+      <div style="text-align:center;">
+        <div style="font-size:42px;font-weight:800;font-family:'Space Mono',monospace;color:${scoreColor};">${score}</div>
+        <div style="font-size:12px;font-weight:700;color:${scoreColor};">${scoreMsg}</div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">
+      <div style="text-align:center;padding:8px;background:rgba(255,255,255,0.04);border-radius:8px;">
+        <div style="font-size:10px;color:var(--text-muted);">貯蓄率</div>
+        <div style="font-size:15px;font-weight:700;color:${savingRate>=20?'#10b981':savingRate>=0?'#f59e0b':'#ef4444'};">${savingRate}%</div>
+        <div style="font-size:9px;color:var(--text-muted);">目標:20%</div>
+      </div>
+      <div style="text-align:center;padding:8px;background:rgba(255,255,255,0.04);border-radius:8px;">
+        <div style="font-size:10px;color:var(--text-muted);">ローン比率</div>
+        <div style="font-size:15px;font-weight:700;color:${loanRatio<=25?'#10b981':loanRatio<=35?'#f59e0b':'#ef4444'};">${loanRatio}%</div>
+        <div style="font-size:9px;color:var(--text-muted);">目標:25%以下</div>
+      </div>
+      <div style="text-align:center;padding:8px;background:rgba(255,255,255,0.04);border-radius:8px;">
+        <div style="font-size:10px;color:var(--text-muted);">予算管理</div>
+        <div style="font-size:15px;font-weight:700;color:${overBudgets.length===0?'#10b981':'#ef4444'};">${overBudgets.length===0?'OK':'超過'+overBudgets.length+'件'}</div>
+        <div style="font-size:9px;color:var(--text-muted);">予算遵守</div>
+      </div>
+    </div>
+  </div>`);
+
+  // ── 個別アドバイス ──
+  if (savingRate < 0) {
+    cards.push(insightCard('🚨','【最優先】赤字を解消しましょう',
+      `今月の収支は <strong>¥${Math.abs(balance).toLocaleString()} の赤字</strong>です。<br>
+      ① まず支出の上位3カテゴリを確認し、各10%削減を目標にしてください<br>
+      ② 固定費（通信費・保険・サブスク）の見直しで効果的に削減できます<br>
+      ③ 収入増加（副業・残業）も並行して検討しましょう`,'#ef4444','rgba(239,68,68,0.08)'));
+  } else if (savingRate < 10) {
+    cards.push(insightCard('⚠️','貯蓄率の改善を目指しましょう',
+      `現在の貯蓄率 <strong>${savingRate}%</strong>。FPが推奨する最低ライン（10%）に届いていません。<br>
+      目標：毎月収入の<strong>10〜20%</strong>を先取り貯蓄する仕組みを作りましょう。<br>
+      給与日に自動積立・財形貯蓄などで「使う前に貯める」のがポイントです。`,'#f59e0b','rgba(245,158,11,0.08)'));
+  } else if (savingRate >= 20) {
+    cards.push(insightCard('🏆','貯蓄率が優秀です！次のステップへ',
+      `貯蓄率 <strong>${savingRate}%</strong> は非常に優秀です！<br>
+      ✅ 緊急資金（生活費3〜6ヶ月分）が確保できていれば、余剰資金を投資に回しましょう<br>
+      ✅ 積立NISA・iDeCoは節税効果もあり、長期資産形成に最適です`,'#10b981','rgba(16,185,129,0.08)'));
+  }
+
+  if (overBudgets.length > 0) {
+    cards.push(insightCard('📋','予算超過のカテゴリがあります',
+      `<strong>${overBudgets.map(b=>`${b.icon||''}${b.name}`).join('・')}</strong> が予算を超過しています。<br>
+      予算を超えたカテゴリの取引を確認し、来月の予算設定も見直しましょう。<br>
+      予算管理の継続が家計改善の第一歩です。`,'#f59e0b','rgba(245,158,11,0.08)'));
+  }
+
+  if (totalLoanMonthly > 0) {
+    const msg = loanRatio > 35
+      ? `⚠️ ローン返済額が収入の<strong>${loanRatio}%</strong>と高めです。FPの目安は<strong>25〜35%以下</strong>です。繰り上げ返済や借り換えを検討しましょう。`
+      : `ローン返済額は収入の<strong>${loanRatio}%</strong>（月 ¥${totalLoanMonthly.toLocaleString()}）。管理可能な範囲内です。`;
+    cards.push(insightCard('🏦','ローン負担の状況',msg, loanRatio>35?'#f59e0b':'#3b82f6',loanRatio>35?'rgba(245,158,11,0.08)':'rgba(59,130,246,0.08)'));
+  }
+
+  if (totalSubs > 0) {
+    const subRatio = cur.income > 0 ? Math.round(totalSubs/cur.income*100) : 0;
+    cards.push(insightCard('📱','サブスク費用の確認',
+      `毎月のサブスク合計は <strong>¥${totalSubs.toLocaleString()}（収入の${subRatio}%）</strong>。<br>
+      年間 <strong>¥${(totalSubs*12).toLocaleString()}</strong> の固定費になります。使っていないサービスは解約し、必要なものだけに絞りましょう。`,
+      '#8b5cf6','rgba(139,92,246,0.08)'));
+  }
+
+  if (topCats.length > 0) {
+    const top = topCats[0];
+    cards.push(insightCard('🔍','今月の支出トップカテゴリ',
+      `最も多い支出は <strong>${top[0]}（¥${top[1].toLocaleString()}・全体の${Math.round(top[1]/totalExp*100)}%）</strong>。<br>
+      ${top[0]==='食費'?'食費は工夫次第で削減しやすいカテゴリです。自炊を増やす・まとめ買いをするなどで節約できます。':
+        top[0]==='保険'?'保険料が大きい場合は、補償内容を見直す機会かもしれません。複数加入の重複保障がないか確認を。':
+        top[0]==='交際費'?'交際費は生活の質に関わりますが、予算を決めておくと管理しやすくなります。':
+        '大きな支出カテゴリには予算を設定して、月ごとの上限を決めておきましょう。'}`,
+      '#06b6d4','rgba(6,182,212,0.08)'));
+  }
+
+  cards.push(`
+  <div class="card" style="padding:14px 16px;border-left:4px solid #94a3b8;background:rgba(148,163,184,0.05);margin-bottom:10px;">
+    <div style="font-size:12px;font-weight:700;color:var(--text-secondary);margin-bottom:6px;">💬 FPからのひとこと</div>
+    <div style="font-size:12px;color:var(--text-muted);line-height:1.8;">
+      家計管理で最も大切なのは「<strong>記録を続けること</strong>」です。毎月の収支を把握するだけで、無駄な支出は自然と減っていきます。
+      焦らず少しずつ改善を続けていきましょう。小さな積み重ねが大きな資産につながります 📈
+    </div>
+  </div>`);
+
+  el.innerHTML = cards.join('');
+}
 
 // ─── Step 5: 予算管理 ───
 let editingBudgetId = null;
